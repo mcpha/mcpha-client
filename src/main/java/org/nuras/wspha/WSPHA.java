@@ -326,6 +326,7 @@ System.out.println("trying to set acquisiton time to "+value);
     dos.writeLong(Long.reverseBytes(b));
   }
 
+  
   /**
    * Set timer value
    * 

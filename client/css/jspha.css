@@ -1,0 +1,206 @@
+/*
+Copyright 2016 John Preston<byhisdeeds@gmail.com> NURAS.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+/* 
+    Created on : Dec 19, 2016, 7:16:20 AM
+    Author     : John Preston<byhisdeeds@gmail.com>
+*/
+
+* {	padding: 0; margin: 0; vertical-align: top; }
+
+body {
+  background-color: #555;
+  font: 18px/1.5em "proxima-nova", Helvetica, Arial, sans-serif;
+}
+
+a {	color: #069; }
+a:hover { color: #28b; }
+
+h2 {
+  margin-top: 15px;
+  font: normal 32px "omnes-pro", Helvetica, Arial, sans-serif;
+}
+
+h3 {
+  margin-left: 30px;
+  font: normal 26px "omnes-pro", Helvetica, Arial, sans-serif;
+  color: #666;
+}
+
+p {
+  margin-top: 10px;
+}
+
+button {
+  font-size: 18px;
+  padding: 1px 7px;
+}
+
+input {
+  font-size: 18px;
+}
+
+input[type=checkbox] {
+  margin: 7px;
+}
+
+#header {
+  position: absolute;
+  width: inherit;
+  height: 58px;
+  margin: 0px;
+  top: 5px;
+  right: 24px;
+}
+
+#content {
+  margin: 0 auto;
+  padding: 10px;
+}
+
+#footer {
+  margin-top: 25px;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+}
+
+.demo-container {
+  width: inherit;
+  height: 450px;
+  padding: 20px 15px;
+  margin: 52px auto;
+  border: 1px solid #ddd;
+  background: inherit;
+  background: linear-gradient(#f6f6f6 0, #fff 50px);
+  background: -o-linear-gradient(#f6f6f6 0, #fff 50px);
+  background: -ms-linear-gradient(#f6f6f6 0, #fff 50px);
+  background: -moz-linear-gradient(#f6f6f6 0, #fff 50px);
+  background: -webkit-linear-gradient(#f6f6f6 0, #fff 50px);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  -o-box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  -ms-box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  -moz-box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  -webkit-box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.demo-placeholder {
+  width: 99%;
+  height: 100%;
+  font-size: 14px;
+  line-height: 1.2em;
+}
+
+.progress {
+  width: inherit;
+  height: 5px;
+  position: relative;
+  top: 52px;
+  background-color: red;
+  opacity: 0.7;
+}
+
+.legend table {
+  border-spacing: 5px;
+}
+
+.zoom-full-extent-button {
+  background-image: url(images/zoom-full-extent.png);
+  width: 54px;
+  height: 54px;
+}
+
+.zoom-in-button {
+  background-image: url(images/zoom-in.png);
+  width: 54px;
+  height: 54px;
+}
+
+.zoom-out-button {
+  background-image: url(images/zoom-out.png);
+  width: 54px;
+  height: 54px;
+}
+
+.pan-button {
+  background-image: url(images/pan.png);
+  width: 54px;
+  height: 54px;
+}
+
+.yscale-lg-button {
+  width: 54px;
+  height: 54px;
+}
+
+.yscale-sq-button {
+  width: 54px;
+  height: 54px;
+}
+
+.yscale-ln-button {
+  width: 54px;
+  height: 54px;
+}
+
+.cursor-panel-container {
+  font-size: 32px;
+  position: absolute;
+  top: 10px;
+  left: 50px;
+  width: 1000px;
+  height: 50px;
+  padding: 10px;
+  border: 1px solid red;
+}
+
+.deviceip {
+  color: black;
+  width: 200px;
+  margin-right: 10px;
+}
+
+.acquire {
+  color: black;
+  width: 130px;
+  margin-right: 10px;
+}
+
+.cursor-panel-content {
+  color: lightgray;
+  border: 1px solid green;
+}
+
+#cursor {
+  color: lightgray;
+  display:inline-block;
+  width: 140px;
+}
+
+#counts {
+  color: lightgray;
+  display:inline-block;
+  width: 140px;
+}
+
+.ui-draggable, .ui-droppable {
+	background-position: top;
+}
+
+.dialog-prompt {
+  border: 1px solid transparent;
+  padding: 0.3em;
+}

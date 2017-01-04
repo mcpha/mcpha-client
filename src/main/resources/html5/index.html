@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<!--
+Copyright 2016 John Preston<byhisdeeds@gmail.com> NURAS.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>WSPHA</title>
+    <link rel="stylesheet" type="text/css" href="css/jquery-ui.css">
+    <link rel="stylesheet" type="text/css" href="css/jspha.css" >
+    <!--[if lte IE 8]><script language="javascript" type="text/javascript" src="../../excanvas.min.js"></script><![endif]-->
+    <script language="javascript" type="text/javascript" src="js/jquery.js"></script>
+    <script language="javascript" type="text/javascript" src="js/jquery-ui.js"></script>
+    <script language="javascript" type="text/javascript" src="js/jquery.flot.js"></script>
+    <script language="javascript" type="text/javascript" src="js/jquery.flot.crosshair.js"></script>
+    <script language="javascript" type="text/javascript" src="js/jquery.flot.selection.js"></script>
+    <script language="javascript" type="text/javascript" src="js/jquery.flot.resize.js"></script>
+    <script language="javascript" type="text/javascript" src="js/notify.js"></script>
+    <script type="text/javascript">
+
+      $(function () {
+
+        var ws;
+        
+        // Check that page is loaded via http protocol
+        if (window.location.protocol === "file:")
+        {
+          document.write("ERROR: This app must be loaded via a http web server.");
+          return;
+        }
+
+        initConnectionStatus();
+
+        if ("WebSocket" in window) {
+          
+          updateConnectionStatus("ctws");
+          
+          ws = new WebSocket("ws://localhost:4567/wspha");
+          
+          ws.onopen = function () {
+            updateConnectionStatus("wsce");
+          };
+          
+          ws.onmessage = function (evt) {
+            
+            logMessage(">>"+evt.data);
+            
+            msg = JSON.parse(evt.data);
+            if (msg.command === "connect") {
+              if (msg.status === 0) {
+                $.notify(msg.message, "success");
+                updateConnectionStatus("rpce");
+                $( "#deviceip" ).text("Disconnect from Device");
+              } else {
+                $.notify(msg.message, "error");
+                updateConnectionStatus("rpcd");
+                $( "#deviceip" ).text("Connect to Device");
+              }
+            } else if (msg.command === "disconnect") {
+              if (msg.status === 0) {
+                $.notify(msg.message, "success");
+                updateConnectionStatus("rpcd");
+                $( "#deviceip" ).text("Connect to Device");
+              } else {
+                $.notify(msg.message, "error");                
+              }
+            } else if (msg.command === "set_acquisition_time") {
+              if (msg.status === 0) {
+                
+              } else {
+                
+              }
+            }
+          };
+          
+          ws.close = function() {
+            // Web Socket has been closed
+            updateConnectionStatus("wscd");
+          };
+          
+          ws.onerror = function (evt) {
+            logMessage("**"+evt.data);
+            alert("->"+evt.data);
+          };
+        } else {
+          document.write("ERROR: This browser does NOT support websockets. Please use a HTML5 compliant browser.");
+          return;
+        }
+
+        function logMessage(message) {
+          $("<p>"+message+"</p>").appendTo('#message-log');
+        }
+
+        function initConnectionStatus() {
+          $("#wsconnection").css("background-image","url(css/images/disconnected.png)");
+          $("#wsconnection").prop("title", "Disconnected from web socket server");
+        
+          $("#rpconnection").css("background-image","url(css/images/disconnected.png)");
+          $("#rpconnection").prop("title", "Disconnected from Red Pitaya device");
+        }
+
+        function updateConnectionStatus(mode) {
+          if (mode === "ctws") {
+            // connecting to web socket
+            $("#wsconnection").css("background-image","url(css/images/spin.svg)");
+            $("#wsconnection").prop("title", "Connecting to web socket");
+            setAcquisitionButtonsEnabled( false );
+          } else if (mode === "wsce"){
+            // Web socket connection established
+            $("#wsconnection").css("background-image","url(css/images/connected.png)");
+            $("#wsconnection").prop("title", "Web socket server connection established");
+            setAcquisitionButtonsEnabled( false );
+          } else if (mode === "wscd"){
+            // Web socket connection disconnected
+            $("#wsconnection").css("background-image","url(css/images/disconnected.png)");
+            $("#wsconnection").prop("title", "Web socket server connection disconnected");
+            setAcquisitionButtonsEnabled( false );
+          } else if (mode === "ctrp") {
+            // connecting to red pitaya
+            $("#rpconnection").css("background-image","url(css/images/spin.svg)");
+            $("#rpconnection").prop("title", "Connecting to Red Pitaya device");
+            setAcquisitionButtonsEnabled( false );
+          } else if (mode === "rpce") {
+            // red pitaya connection established
+            $("#rpconnection").css("background-image","url(css/images/connected.png)");
+            $("#rpconnection").prop("title", "Red Pitaya device connection established");
+            setAcquisitionButtonsEnabled( true );
+          } else if (mode === "rpcd") {
+            // red pitaya connection disconnected
+            $("#rpconnection").css("background-image","url(css/images/disconnected.png)");
+            $("#rpconnection").prop("title", "Red Pitaya device connection disconnected");
+            setAcquisitionButtonsEnabled( false );
+          }
+        }
+
+        function setAcquisitionButtonsEnabled(state) {
+          if (state) {
+            $("#setacqtime").removeAttr("disabled");
+            $("#setacqtime").css("color", "#000");
+            $("#start").removeAttr("disabled");
+            $("#start").css("color", "#000");
+            $("#stop").removeAttr("disabled");
+            $("#stop").css("color", "#000");
+            $("#clear").removeAttr("disabled");
+            $("#clear").css("color", "#000");
+            $("#roi1").removeAttr("disabled");
+            $("#roi1").css("color", "#000");
+            $("#roi2").removeAttr("disabled");
+            $("#roi2").css("color", "#000");
+            $("#roi3").removeAttr("disabled");
+            $("#roi3").css("color", "#000");
+          } else {
+            $("#setacqtime").attr("disabled", "disabled");
+            $("#setacqtime").css("color", "#aaa");
+            $("#start").attr("disabled", "disabled");
+            $("#start").css("color", "#aaa");
+            $("#stop").attr("disabled", "disabled");
+            $("#stop").css("color", "#aaa");
+            $("#clear").attr("disabled", "disabled");
+            $("#clear").css("color", "#aaa");
+            $("#roi1").attr("disabled", "disabled");
+            $("#roi1").css("color", "#aaa");
+            $("#roi2").attr("disabled", "disabled");
+            $("#roi2").css("color", "#aaa");
+            $("#roi3").attr("disabled", "disabled");
+            $("#roi3").css("color", "#aaa");
+          }
+        }
+    
+        function yscaleFunction (y) {
+          return y * .5;
+        }
+
+        function calculateFullExtent (variable) {
+          var xmin =  10000000;
+          var xmax = -10000000;
+          var ymin =  10000000;
+          var ymax = -10000000;
+          
+          $.each(variable, function(index, value) {
+            $.each(value.data, function(index, value) {
+              if (value[0] > xmax) {
+                xmax = value[0];
+              }
+              if (value[0] < xmin) {
+                xmin = value[0];
+              }
+              if (value[1] > ymax) {
+                ymax = value[1];
+              }
+              if (value[1] < ymin) {
+                ymin = value[1];
+              }
+            });
+          });
+          
+          return {"xmin" : xmin, "xmax": xmax, "ymin": ymin, "ymax": ymax};
+        }
+
+        // initialise device ip address
+        if (localStorage.getItem('rp_ipaddr') === null) {
+          localStorage.setItem('rp_ipaddr', "0.0.0.0");
+          localStorage.setItem('rp_port', "0");
+        }
+
+        var allFields = $( [] ).add( ipaddr );
+        var dialog_ipaddr = $( "#dialog-ipaddr" ).dialog({
+          autoOpen: false,
+          height: 400,
+          width: 400,
+          modal: true,
+          buttons: {
+            "Connect": function() {
+              // Put the object into storage
+              localStorage.setItem('rp_ipaddr', $( "#ipaddr" ).val());
+              localStorage.setItem('rp_port', $( "#port" ).val());
+              // connect to red pitaya device
+              updateConnectionStatus("ctrp");
+              ws.send("{\"type\":\"req\",\"command\":\"connect\",\"deviceip\":\""+$("#ipaddr").val()+"\",\"port\":"+$("#port").val()+"}");
+              // close dialog
+              dialog_ipaddr.dialog( "close" );
+            },
+            Cancel: function() {
+              dialog_ipaddr.dialog( "close" );
+            }
+          },
+          close: function() {
+            form[ 0 ].reset();
+            allFields.removeClass( "ui-state-error" );
+          }
+        });
+        
+        var form = dialog_ipaddr.find( "form" ).on( "submit", function( event ) {
+          event.preventDefault();
+        });
+        
+        var dialog_acqtime = $( "#dialog-acqtime" ).dialog({
+          autoOpen: false,
+          height: 400,
+          width: 400,
+          modal: true,
+          buttons: {
+            "OK": function() {
+              // Put the object into storage
+              localStorage.setItem('rp_acqtime', $( "#acqtime" ).val());
+              // connect to red pitaya device
+              ws.send("{\"type\":\"req\",\"command\":\"set_acqisition_time\",\"value\":"+$("#acqtime").val()+"}");
+              // close dialog
+              dialog_acqtime.dialog( "close" );
+            },
+            Cancel: function() {
+              dialog_acqtime.dialog( "close" );
+            }
+          },
+          close: function() {
+            form[ 0 ].reset();
+            allFields.removeClass( "ui-state-error" );
+          }
+        });
+        
+        var form = dialog_acqtime.find( "form" ).on( "submit", function( event ) {
+          event.preventDefault();
+        });
+
+        $("button.deviceip").click(function () {
+          if ($( "#deviceip" ).text().startsWith("Connect")) {
+            // read the red pitaya device address from storage
+            $( "#ipaddr" ).val(localStorage.getItem('rp_ipaddr'));
+            $( "#port" ).val(localStorage.getItem('rp_port'));
+            dialog_ipaddr.dialog( "open" );
+          } else {
+            ws.send("{\"type\":\"req\",\"command\":\"disconnect\"}");
+          }
+        });
+        
+        var options = {
+          lines: {
+            show: true
+          },
+          points: {
+            show: true
+          },
+          xaxis: {
+            tickDecimals: 0,
+            tickSize: 1,
+            transform: function(x) {
+              return x;
+            }
+          },
+          yaxis: {
+            ticks: [0.1,1,10,100,1000],
+            transform:  function(v) {
+              return Math.log(v+0.0001); /*move away from zero*/
+            },
+            tickDecimals: 3,
+            tickFormatter: function (v, axis) {
+              return "10" + (Math.round( Math.log(v)/Math.LN10)).toString().sup();
+            }
+          },
+          grid: {
+            backgroundColor: "#999",
+            hoverable: true,
+            clickable: true,
+            autoHighlight: false
+          },
+          crosshair: {
+            mode: "x"
+          },
+          zoom: {
+            interactive: true
+          },
+          pan: {
+            interactive: true
+          },
+          selection: {
+            mode: "x"
+          }
+        };
+
+        var data = [];
+
+        var plot = $.plot("#spectrum-placeholder", data, options);
+
+        // Fetch one series, adding to what we already have
+        $("#spectrum-placeholder").bind("plothover", function(event, pos, item) {
+          if (item) {
+            $("#spectrum-placeholder").css("cursor","pointer","important");
+          } else {
+            $("#spectrum-placeholder").css("cursor","crosshair", "important");
+          }
+        });
+        
+        var alreadyFetched = {};
+
+        // Set Y display to linear
+        $("button.yscale-ln-button").click(function () {
+          options.yaxis.ticks = null;
+          options.yaxis.transform = null;
+          options.yaxis.tickDecimals = null;
+          options.yaxis.tickFormatter = null;
+          plot = $.plot("#spectrum-placeholder", data, options);
+        });
+
+        // Set Y display to square root
+        $("button.yscale-sq-button").click(function () {
+          options.yaxis.ticks = null;
+          options.yaxis.transform = function(v) {
+            return Math.sqrt(v+0.0001); /*move away from zero*/
+          };
+          options.yaxis.tickDecimals = null;
+          options.yaxis.tickFormatter = function (v, axis) {
+            return "10" + (Math.round( Math.log(v)/Math.LN10)).toString().sup();
+          };
+          plot = $.plot("#spectrum-placeholder", data, options);
+        });
+
+        // Set Y display to log10
+        $("button.yscale-lg-button").click(function () {
+          options.yaxis.ticks = [0.1,1,10,100,1000];
+          options.yaxis.transform = function(v) {
+            return Math.log(v+0.0001); /*move away from zero*/
+          };
+          options.yaxis.tickDecimals = 3;
+          options.yaxis.tickFormatter = function (v, axis) {
+            return "10" + (Math.round( Math.log(v)/Math.LN10)).toString().sup();
+          };
+          plot = $.plot("#spectrum-placeholder", data, options);
+        });
+
+        // zoom to full channel extent button click handler
+        $("button.zoom-full-extent-button").click(function () {
+          var axis = plot.getAxes();
+          options.xaxis.min = axis.xaxis.datamin;
+          options.xaxis.max = Math.ceil(axis.xaxis.datamax);
+          options.yaxis.min = 0;
+          options.yaxis.max = Math.ceil(axis.yaxis.datamax);
+          plot = $.plot("#spectrum-placeholder", data, options);
+        });
+
+        $("button.zoom-in-button").click(function () {
+          var axis = plot.getAxes();
+          var xrng = (options.xaxis.max - options.xaxis.min) / 4;
+          if (xrng < 2) {
+            return;
+          }
+          options.xaxis.min += xrng;
+          if (options.xaxis.min < axis.xaxis.datamin) {
+            options.xaxis.min = axis.xaxis.datamin;
+          }
+          options.xaxis.max -= xrng;
+          if (options.xaxis.max > axis.xaxis.datamax) {
+            options.xaxis.max = axis.xaxis.datamax;
+          }
+          plot = $.plot("#spectrum-placeholder", data, options);
+        });
+
+        $("button.zoom-out-button").click(function () {
+          var axis = plot.getAxes();
+          var xrng = (options.xaxis.datamax - options.xaxis.datamin) / 4;
+          if (xrng < 2) {
+            return;
+          }
+          options.xaxis.min -= xrng;
+          if (options.xaxis.min < axis.xaxis.datamin) {
+            options.xaxis.min = axis.xaxis.datamin;
+          }
+          options.xaxis.max += xrng;
+          if (options.xaxis.max > axis.xaxis.datamax) {
+            options.xaxis.max = axis.xaxis.datamax;
+          }
+          plot = $.plot("#spectrum-placeholder", data, options);
+        });
+
+        $("button.pan-button").click(function () {
+//          plot.pan({ left: -2 });
+          options.xaxis.min = 2004;
+          plot = $.plot("#spectrum-placeholder", data, options);
+        });
+
+        // 
+        $("#setacqtime").click(function () {
+          $( "#acqtime" ).val(localStorage.getItem('rp_acqtime'));
+          dialog_acqtime.dialog( "open" );
+        });
+
+        // 
+        $("#start").click(function () {
+          alert("STARt ACQUISITION");
+        });
+
+        $("#stop").click(function () {
+          alert("STOP ACQUISITION");
+        });
+
+        $("#clear").click(function () {
+          alert("CLEAR SPECTUM DATA");
+        });
+
+        $("#roi2").click(function () {
+          alert("SET ROI #2");
+        });
+
+        $("#roi1").click(function () {
+          alert("SET ROI #1");
+        });
+
+        $("#roi3").click(function () {
+          alert("SET ROI #3");
+        });
+
+        function getdata() {
+          var dataurl = "data-usa-gdp-growth.json";
+
+          function onDataReceived(series) {
+
+            data.push(series);
+
+            $.plot("#spectrum-placeholder", data, options);
+          }
+
+          $.ajax({
+            url: dataurl,
+            type: "GET",
+            dataType: "json",
+            success: onDataReceived
+          });
+        }
+
+        // Load the first series by default, so we don't have an empty plot
+
+        getdata();
+
+
+        $("#spectrum-placeholder").bind("plothover", function (event, pos, item) {
+          $("#cursor").text(pos.x.toFixed(2));
+          $("#counts").text(pos.y.toFixed(2));
+        });
+        $("#cursor").text("0");
+
+        // Catch keypressess
+        // left = 37, up = 38, right = 39, down = 40
+        $(document).keyup(function (e) {
+          if (e.which === 37) {
+            alert('You pressed left!');
+          } else if (e.which === 38) {
+            alert('You pressed up!');
+          } else if (e.which === 39) {
+            alert('You pressed right!');
+          } else if (e.which === 40) {
+            alert('You pressed down!');
+          } else if (e.which === 13) {
+            alert('You pressed enter!');
+          }
+        });
+        
+        setAcquisitionButtonsEnabled(false);
+        
+        $( "#tabs" ).tabs();
+        $( "#tabs ul li").css({'margin-right':'25px'});
+//        $(".spectrum-container").resizable({
+//          maxWidth: 900,
+//          maxHeight: 500,
+//          minWidth: 450,
+//          minHeight: 250
+//        });
+      });
+
+    </script>
+  </head>
+  <body>
+
+    <div id="content">
+      
+      <div class="connection-panel-container">
+        <div class="connection-panel-content">
+          <div class="wsconnection" id="wsconnection" title="Websocket connection status"></div>
+          <div class="rpconnection" id="rpconnection" title="Red Pitaya device connection status"></div>
+          <button class="deviceip" id="deviceip" title="Set Red Pitaya device IP">Connect to Device</button>
+        </div>
+      </div>
+
+      <div id="tabs">
+        <div id="fragment-mca">
+
+          <div class="cursor-panel-container">
+            <div class="cursor-panel-content">
+              Cursor : <span id="cursor"></span>
+              Counts : <span id="counts"></span>
+            </div>
+          </div>
+
+          <div class="spectrum-container">
+            <div id="header">
+              <button class="zoom-full-extent-button" title="Zoom channel view to full extent"></button>
+              <button class="zoom-in-button" title="Zoom channel view in"></button>
+              <button class="zoom-out-button" title="Zoom out channel view"></button>
+              <button class="pan-button" title="Pan channel view"></button>
+              <div style="width:8px;display:inline-block"></div>
+              <button class="yscale-ln-button" title="Linear">LN</button>
+              <button class="yscale-sq-button" title="Square Root">SQ</button>
+              <button class="yscale-lg-button" title="Log">LG</button>
+            </div>
+            <div class="controls-panel-container">
+              <div class="controls-panel-content">
+                <button class="setacqtime" id="setacqtime" title="Set acquisition time">Acq. Time</button>
+                <button class="start" id="start" title="Start spectrum acquisition">Start</button>
+                <button class="stop" id="stop" title="Stop spectrum acquisition">Stop</button>
+                <button class="clear" id="clear" title="Clear spectrum data">Clear</button>
+                <div style="width:8px;display:inline-block"></div>
+                <button class="roi1" id="roi1" title="Set ROI #1">ROI #1</button>
+                <button class="roi2" id="roi2" title="Set ROI #2">ROI #2</button>
+                <button class="roi3" id="roi3" title="Set ROI #3">ROI #3</button>
+              </div>
+            </div>
+            <div id="spectrum-placeholder" class="spectrum-placeholder"></div>
+          </div>
+        </div>
+
+        <div id="dialog-ipaddr" title="Red Pitaya Device IP Address/Port">
+          <p class="dialogPrompt">Enter device IP address and port.</p>
+
+          <form>
+            <fieldset>
+              <label for="ipaddr">IP Address</label>
+              <input type="text" name="ipaddr" id="ipaddr" value="0.0.0.0" class="text ui-widget-content ui-corner-all">
+
+              <label for="port">Port</label>
+              <input type="text" name="port" id="port" value="0" class="text ui-widget-content ui-corner-all">
+
+              <!-- Allow form submission with keyboard without duplicating the dialog button -->
+              <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+          </form>
+        </div>
+
+        <div id="dialog-acqtime" title="Aquisition Time">
+          <p class="dialogPrompt">Enter acquisition time in seconds.</p>
+
+          <form>
+            <fieldset>
+              <label for="acqtime">Acquisition Time (s)</label>
+              <input type="text" name="acqtime" id="acqtime" value="60" class="text ui-widget-content ui-corner-all">
+
+              <!-- Allow form submission with keyboard without duplicating the dialog button -->
+              <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+          </form>
+        </div>
+        <div id="fragment-oscilloscope">
+          <div id="content">
+            Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.
+            Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.
+          </div>
+        </div>
+        <div id="fragment-log">
+          <div id="content">
+            <div id="message-log"></div>
+          </div>
+        </div>
+        <ul>
+          <li><a href="#fragment-mca"><span>MCA</span></a></li>
+          <li><a href="#fragment-oscilloscope"><span>Oscilloscope</span></a></li>
+          <li><a href="#fragment-log"><span>Message Log</span></a></li>
+        </ul>
+      </div>
+    </div>
+  
+  </body>
+</html>

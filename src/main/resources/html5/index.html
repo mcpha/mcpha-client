@@ -41,6 +41,19 @@ limitations under the License.
           return;
         }
 
+//  var data,data1,options,chart;
+//  data1 = [ [1,5],[2,5],[3,6],[4,9],[5,7],[6,6],[7,2],[8,1],[9,3] ];
+//  var data2 = [], data3=[];
+//  for(var i = 1; i < 10; i++) { data2.push([i,i * 2])}
+//  for(var i = 1; i < 10; i++) { data3.push([i,10 * Math.random()])}
+//  data = [{ data:data1, label:"fixed", lines:{show:true}}
+//        ,{ data:data2, label:"linear", lines:{show:true}, points:{show:true}}
+//        ,{ data:data3, label:"random", bars:{ show:true, barWidth:0.5}}];
+//  options = {legend:{position:"nw"}};
+//  $(document).ready(function(){
+//  	chart = $.plot($("#placeholder"),data,options);
+//  });
+
         initConnectionStatus();
 
         if ("WebSocket" in window) {
@@ -54,11 +67,12 @@ limitations under the License.
           };
           
           ws.onmessage = function (evt) {
-            
-            logMessage(">>"+evt.data);
-            
             msg = JSON.parse(evt.data);
             if (msg.command === "connect") {
+              logMessage(">>"+evt.data);
+              if (msg.type === "req") {
+                return;
+              }
               if (msg.status === 0) {
                 $.notify(msg.message, "success");
                 updateConnectionStatus("rpce");
@@ -69,6 +83,7 @@ limitations under the License.
                 $( "#deviceip" ).text("Connect to Device");
               }
             } else if (msg.command === "disconnect") {
+              logMessage(">>"+evt.data);
               if (msg.status === 0) {
                 $.notify(msg.message, "success");
                 updateConnectionStatus("rpcd");
@@ -76,11 +91,44 @@ limitations under the License.
               } else {
                 $.notify(msg.message, "error");                
               }
+            } else if (msg.command === "getdata") {
+              if (msg.status === 0) {
+                var axis = plot.getAxes();
+                options.xaxis.min = 0;
+                options.xaxis.max = 16300;
+                options.yaxis.min = 0;
+                options.yaxis.max = 4000;
+                options.xaxis.tickSize = 1000;
+                data.length = 0;
+                data.push({label:msg.label, data:msg.data});
+                $.plot("#spectrum-placeholder", data, options);
+              } else {
+                $.notify(msg.message, "error");                
+              }
             } else if (msg.command === "set_acquisition_time") {
+              logMessage(">>"+evt.data);
+              if (msg.type === "req") {
+                $( "#acqtime_s" ).text(msg.value);                
+                return;
+              }
               if (msg.status === 0) {
                 
               } else {
                 
+              }
+            } else if (msg.command === "set_roi") {
+              logMessage(">>"+evt.data);
+              if (msg.type === "req") {
+                return;
+              }
+              if (msg.status === 0) {
+                if (msg.roi === 1) {
+                  $( "#roi1_counts" ).text(msg.counts);
+                } else if (msg.roi === 2) {
+                  $( "#roi2_counts" ).text(msg.counts);
+                } else if (msg.roi === 3) {
+                  $( "#roi3_counts" ).text(msg.counts);
+                }
               }
             }
           };
@@ -256,7 +304,7 @@ limitations under the License.
               // Put the object into storage
               localStorage.setItem('rp_acqtime', $( "#acqtime" ).val());
               // connect to red pitaya device
-              ws.send("{\"type\":\"req\",\"command\":\"set_acqisition_time\",\"value\":"+$("#acqtime").val()+"}");
+              ws.send("{\"type\":\"req\",\"command\":\"set_acquisition_time\",\"value\":"+$("#acqtime").val()+"}");
               // close dialog
               dialog_acqtime.dialog( "close" );
             },
@@ -287,10 +335,11 @@ limitations under the License.
         
         var options = {
           lines: {
-            show: true
+            show: true,
+            steps: true
           },
           points: {
-            show: true
+            show: false
           },
           xaxis: {
             tickDecimals: 0,
@@ -329,6 +378,10 @@ limitations under the License.
           }
         };
 
+        var yscale = "ln";
+        
+        var roi2set = "";
+        
         var data = [];
 
         var plot = $.plot("#spectrum-placeholder", data, options);
@@ -346,6 +399,7 @@ limitations under the License.
 
         // Set Y display to linear
         $("button.yscale-ln-button").click(function () {
+          yscale = "ln";
           options.yaxis.ticks = null;
           options.yaxis.transform = null;
           options.yaxis.tickDecimals = null;
@@ -355,26 +409,26 @@ limitations under the License.
 
         // Set Y display to square root
         $("button.yscale-sq-button").click(function () {
+          yscale = "sq";
           options.yaxis.ticks = null;
           options.yaxis.transform = function(v) {
             return Math.sqrt(v+0.0001); /*move away from zero*/
           };
           options.yaxis.tickDecimals = null;
-          options.yaxis.tickFormatter = function (v, axis) {
-            return "10" + (Math.round( Math.log(v)/Math.LN10)).toString().sup();
-          };
+          options.yaxis.tickFormatter = null;
           plot = $.plot("#spectrum-placeholder", data, options);
         });
 
         // Set Y display to log10
         $("button.yscale-lg-button").click(function () {
+          yscale = "lg";
           options.yaxis.ticks = [0.1,1,10,100,1000];
           options.yaxis.transform = function(v) {
-            return Math.log(v+0.0001); /*move away from zero*/
+            return Math.log10(v+0.0001); /*move away from zero*/
           };
           options.yaxis.tickDecimals = 3;
           options.yaxis.tickFormatter = function (v, axis) {
-            return "10" + (Math.round( Math.log(v)/Math.LN10)).toString().sup();
+            return "10" + (Math.round( Math.log10(v)/Math.LN10)).toString().sup();
           };
           plot = $.plot("#spectrum-placeholder", data, options);
         });
@@ -425,15 +479,26 @@ limitations under the License.
 
         $("button.pan-button").click(function () {
 //          plot.pan({ left: -2 });
-          options.xaxis.min = 2004;
+          options.xaxis.min = 5400;
+          options.xaxis.max = 5500;
           plot = $.plot("#spectrum-placeholder", data, options);
         });
 
-        // 
+        // set initial acquisition time
+        if (localStorage.getItem("rp_acqtime") === null) {
+          // use default value of 60 seconds
+          localStorage.setItem('rp_acqtime', "60");
+        }
+        $( "#acqtime_s" ).text(localStorage.getItem("rp_acqtime"));
+        
+        // install set acquisition button click handler
         $("#setacqtime").click(function () {
           $( "#acqtime" ).val(localStorage.getItem('rp_acqtime'));
           dialog_acqtime.dialog( "open" );
         });
+        
+        // set initial elapsedtime
+        $( "#elapsedtime" ).text("0");
 
         // 
         $("#start").click(function () {
@@ -448,16 +513,28 @@ limitations under the License.
           alert("CLEAR SPECTUM DATA");
         });
 
-        $("#roi2").click(function () {
-          alert("SET ROI #2");
-        });
-
+        // set initial roi #1 value
+        $( "#roi1_value" ).text("0");
+        // install click handler
         $("#roi1").click(function () {
-          alert("SET ROI #1");
+          roi2set = "1";
+          $.notify("Select ROI #1 region using mouse", "info");
         });
 
+        // set initial roi #2 value
+        $( "#roi2_value" ).text("0");
+        // install click handler
+        $("#roi2").click(function () {
+          roi2set = "2";
+          $.notify("Select ROI #2 region using mouse", "info");
+        });
+
+        // set initial roi #3 value
+        $( "#roi3_value" ).text("0");
+        // install click handler
         $("#roi3").click(function () {
-          alert("SET ROI #3");
+          roi2set = "3";
+          $.notify("Select ROI #3 region using mouse", "info");
         });
 
         function getdata() {
@@ -480,12 +557,24 @@ limitations under the License.
 
         // Load the first series by default, so we don't have an empty plot
 
-        getdata();
-
+//        getdata();
+        $("#spectrum-placeholder").bind("plotselected", function (event, ranges) {
+          // $("#selection").text(ranges.xaxis.from.toFixed(1) + " to " + ranges.xaxis.to.toFixed(1));
+          ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+roi2set+",\"from\":"+ranges.xaxis.from.toFixed(0)+",\"to\":"+ranges.xaxis.to.toFixed(0)+"}");
+          plot.clearSelection();
+        });
 
         $("#spectrum-placeholder").bind("plothover", function (event, pos, item) {
-          $("#cursor").text(pos.x.toFixed(2));
-          $("#counts").text(pos.y.toFixed(2));
+          if (data.length > 0) {
+            $("#cursor").text(pos.x.toFixed(0));
+            if (yscale === "ln") {
+              $("#counts").text(pos.y.toFixed(2));
+            } else if (yscale === "sq") {
+              $("#counts").text(pos.y.toFixed(2)*pos.y.toFixed(2));
+            } else if (yscale === "lg") {
+              $("#counts").text(Math.pow(10,pos.y.toFixed(2)));
+            }
+          }
         });
         $("#cursor").text("0");
 
@@ -535,10 +624,13 @@ limitations under the License.
         <div id="fragment-mca">
 
           <div class="cursor-panel-container">
-            <div class="cursor-panel-content">
-              Cursor : <span id="cursor"></span>
-              Counts : <span id="counts"></span>
-            </div>
+            <div class="cursor-panel-content">Cursor ......... : <span class="onscreen-message" id="cursor"></span>
+Counts ......... : <span class="onscreen-message" id="counts"></span>
+Acq. Time (s) .. : <span class="onscreen-message" id="acqtime_s"></span>
+Elapsed Time (s) : <span class="onscreen-message" id="elapsedtime"></span>
+ROI #1 ......... : <span class="onscreen-message" id="roi1_counts"></span>
+ROI #2 ......... : <span class="onscreen-message" id="roi2_counts"></span>
+ROI #3 ......... : <span class="onscreen-message" id="roi3_counts"></span></div>
           </div>
 
           <div class="spectrum-container">
@@ -548,9 +640,9 @@ limitations under the License.
               <button class="zoom-out-button" title="Zoom out channel view"></button>
               <button class="pan-button" title="Pan channel view"></button>
               <div style="width:8px;display:inline-block"></div>
-              <button class="yscale-ln-button" title="Linear">LN</button>
-              <button class="yscale-sq-button" title="Square Root">SQ</button>
-              <button class="yscale-lg-button" title="Log">LG</button>
+              <button class="yscale-ln-button" title="Linear vertical scale">LN</button>
+              <button class="yscale-sq-button" title="Square Root vertical scale">SQ</button>
+              <button class="yscale-lg-button" title="Log 10 vertical scale">LG</button>
             </div>
             <div class="controls-panel-container">
               <div class="controls-panel-content">

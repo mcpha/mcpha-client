@@ -86,6 +86,13 @@ System.out.println("onMessage - sender="+sender+", message="+message);
         long value = (long)json.get("value");
         WSPHA.mcphaSetSampleRate(value);
       }
+      else if (command.equals("set_roi"))
+      {
+        long roi = (long)json.get("roi");
+        long start = (long)json.get("from");
+        long end = (long)json.get("to");
+        WSPHA.mcphaSetRoi(user, (int)roi, (int)start, (int)end);
+      }
     }
     catch (ParseException | IOException ex)
     {

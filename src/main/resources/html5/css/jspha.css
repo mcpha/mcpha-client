@@ -238,18 +238,22 @@ input[type=checkbox] {
   font-size: 18px;
   font-family: monospace;
   position: absolute;
-  top: 186px;
+  top: 80px;
   left: 50px;
-  width: 500px;
+  width: 400px;
   height: 50px;
-  padding: 10px;
-  border: 1px solid red;
+  padding: 0px;
   z-index: 1000;
   float: left;
 }
 
 .cursor-panel-content {
   color: white;
+  background-color: #888;
+  padding: 5px;
+  margin: 0px;
+  white-space: pre;
+  opacity: 0.5;
 }
 
 .deviceip {
@@ -312,13 +316,7 @@ input[type=checkbox] {
   color: lightgray;
 }
 
-#cursor {
-  color: lightgray;
-  display:inline-block;
-  width: 140px;
-}
-
-#counts {
+.onscreen-message {
   color: lightgray;
   display:inline-block;
   width: 140px;

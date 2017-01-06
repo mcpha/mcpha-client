@@ -29,10 +29,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static j2html.TagCreator.*;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 
 import static spark.Spark.*;
 
@@ -42,7 +43,18 @@ import static spark.Spark.*;
  */
 public class WSPHA
 {
-
+  static class ROI
+  {
+    public int roi;
+    public int start;
+    public int end;
+    public long counts;
+  }
+  
+  private static final int SHIFT_CODE = 56;
+  
+  private static final int SHIFT_CHAN = 52;
+  
   public static final Long MCPHA_COMMAND_RESET_TIMER = 0L;
 
   public static final Long MCPHA_COMMAND_RESET_HISTOGRAM = 1L;
@@ -53,9 +65,25 @@ public class WSPHA
   
   public static final Long MCPHA_COMMAND_SET_SAMPLE_RATE = 4L;
   
+  public static final Long MCPHA_COMMAND_SET_NEGATOR_MODE = 5L;
+  
+  public static final Long MCPHA_COMMAND_SET_BASELINE_MODE = 6L;
+  
+  public static final Long MCPHA_COMMAND_SET_BASELINE_LEVEL = 7L;
+  
+  public static final Long MCPHA_COMMAND_SET_PHA_DELAY = 8L;
+  
+  public static final Long MCPHA_COMMAND_SET_PHA_MIN_THRESHOLD = 9L;
+  
+  public static final Long MCPHA_COMMAND_SET_PHA_MAX_THRESHOLD = 10L;
+  
   public static final Long MCPHA_COMMAND_SET_TIMER_VALUE = 11L;
   
   public static final Long MCPHA_COMMAND_SET_TIMER_MODE = 12L;
+  
+  public static final Long MCPHA_COMMAND_READ_TIMER = 13L;
+  
+  public static final Long MCPHA_COMMAND_READ_HISTOGRAM = 14L;
 
   // this map is shared between sessions and threads,
   // so it needs to be thread-safe (http://stackoverflow.com/a/2688817)
@@ -63,9 +91,13 @@ public class WSPHA
   
   static Socket deviceSocket = null;
   
+  static int[] histogram_data = null;
+  
   //Assign to username for next connecting user
   static int nextUserNumber = 1;
-
+  
+  static ROI[] rois = new ROI[]{new ROI(), new ROI(), new ROI()};
+  
   /**
    * 
    * @param args 
@@ -143,22 +175,69 @@ System.out.println("SEND_MESSAGE:"+json);
     {
       deviceSocket = new Socket();
       deviceSocket.connect(new InetSocketAddress(deviceip,port), 8000);
+      deviceSocket.setSoTimeout(60000);
       
       // initialise device
-      mcphaResetTimer(0);
+//      mcphaResetTimer(0);
+//      mcphaResetHistogram(0);
       
-      mcphaResetHistogram(0);
-      
-      mcphaSetSampleRate(4);
-      
+//      mcphaSetSampleRate(4);
+      histogram_data = mcphaGetHistogram(0);
+//      mcphaSetTimerValue(0, 60000);
+//      mcphaGetTimerValue(0);
+
       JSONObject json = new JSONObject();
       json.put("command", "connect");
       json.put("message", "Connection established");
       json.put("status", 0);
       sendJSONObjectMessage( user.getRemote(), json);
+
+      // push data
+      json = new JSONObject();
+      json.put("command", "getdata");
+      json.put("message", "");
+      json.put("status", 0);
+      json.put("label", "histogram");
+      
+      JSONArray arr = new JSONArray();
+      for (int i=0; i<histogram_data.length; i++)
+      {
+        JSONArray xy = new JSONArray();
+        xy.put(i).put(histogram_data[i]);
+        arr.put(xy);
+      }
+      json.put("data", arr);
+
+//      JSONArray arr = new JSONArray();
+//      for (int i=1; i<data.length; i++)
+//      {
+//        JSONArray xy = new JSONArray();
+//        xy.put(i-1).put(data[i-1]);
+//        arr.put(xy);
+//        xy = new JSONArray();
+//        xy.put(i).put(data[i-1]);
+//        arr.put(xy);
+//        xy = new JSONArray();
+//        xy.put(i).put(data[i]);
+//        arr.put(xy);
+//      }
+//      json.put("data", arr);
+      
+      sendJSONObjectMessage(user.getRemote(), json);
     }
     catch (IOException ex)
     {
+      if (deviceSocket != null)
+      {
+        try
+        {
+          deviceSocket.close();
+        }
+        catch (IOException ex1)
+        {
+          Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
+        }
+      }
       deviceSocket = null;
       try
       {
@@ -233,7 +312,7 @@ System.out.println("trying to set acquisiton time to "+value);
       json.put("command", "connect");
       json.put("message", "Successful");
       json.put("status", 0);
-      sendJSONObjectMessage( user.getRemote(), json);
+      sendJSONObjectMessage(user.getRemote(), json);
     }
     catch (IOException ex)
     {
@@ -243,7 +322,65 @@ System.out.println("trying to set acquisiton time to "+value);
         JSONObject json = new JSONObject();
         json.put("command", "connect");
         json.put("message", ex.toString());
+        json.put("status", 1);
+        sendJSONObjectMessage( user.getRemote(), json);
+      }
+      catch (IOException ex1)
+      {
+        Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
+      }
+    }
+  }
+
+  /**
+   * 
+   * @param user
+   * @param roi
+   * @param start
+   * @param end
+   * @throws IOException 
+   */
+  synchronized public static void mcphaSetRoi(Session user, int roi, int start, int end)
+    throws IOException
+  {
+    ROI r = null;
+    
+    if (roi < 1 || roi > 3)
+    {
+      try
+      {
+        JSONObject json = new JSONObject();
+        json.put("command", "connect");
+        json.put("message", String.format("ROI numbeer (%d) outside range.", roi));
+        json.put("status", 1);
+        sendJSONObjectMessage( user.getRemote(), json);
+      }
+      catch (IOException ex1)
+      {
+        Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
+      }
+    }
+    
+    rois[roi-1].start = start;
+    rois[roi-1].end = end;
+
+    if (histogram_data != null)
+    {
+      long counts = 0;
+      for (int i=start; i<=end; i++)
+      {
+        counts += histogram_data[i];
+      }
+      try
+      {
+        JSONObject json = new JSONObject();
+        json.put("command", "set_roi");
+        json.put("message", "");
         json.put("status", 0);
+        json.put("roi", roi);
+        json.put("start", start);
+        json.put("end", end);
+        json.put("counts", counts);
         sendJSONObjectMessage( user.getRemote(), json);
       }
       catch (IOException ex1)
@@ -267,9 +404,119 @@ System.out.println("trying to set acquisiton time to "+value);
       rate = 4;
     }
     
-    DataOutputStream dos = new DataOutputStream(deviceSocket.getOutputStream());
-    long b = (long)(MCPHA_COMMAND_SET_SAMPLE_RATE << 56) | (0L << 52) | rate;
-    dos.writeLong(Long.reverseBytes(b));
+    sendCommand(MCPHA_COMMAND_SET_SAMPLE_RATE, 0L, rate);
+  }
+
+  /**
+   * Reset histogram
+   * 
+   * @param chan 
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaResetHistogram(long chan)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_RESET_HISTOGRAM, chan, 0L);
+  }
+
+  /**
+   * Reset oscilloscope
+   * 
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaResetOscilloscope()
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_RESET_OSCILLOSCOPE, 0L, 0L);
+  }
+
+  /**
+   * Reset generator
+   * 
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaResetGenerator()
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_RESET_GENERATOR, 0L, 0L);
+  }
+
+  /**
+   * Set negator mode, 0 for disabled and 1 for enabled
+   * 
+   * @param chan
+   * @param mode
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetNegatorMode(long chan, long mode)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_SET_NEGATOR_MODE, chan, mode);
+  }
+
+  /**
+   * Set baseline mode, 0 for none and 1 for auto
+   * 
+   * @param chan
+   * @param mode
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetBaselineMode(long chan, long mode)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_SET_BASELINE_MODE, chan, mode);
+  }
+
+  /**
+   * Set baseline level
+   * 
+   * @param chan
+   * @param level
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetBaselineLevel(long chan, long level)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_SET_BASELINE_LEVEL, chan, level);
+  }
+
+  /**
+   * Set PHA delay
+   * 
+   * @param chan
+   * @param delay
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetPhaDelay(long chan, long delay)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_SET_PHA_DELAY, chan, delay);
+  }
+
+  /**
+   * Set PHA min threshold
+   * 
+   * @param chan
+   * @param threshold
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetPhaMinThreshold(long chan, long threshold)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_SET_PHA_MIN_THRESHOLD, chan, threshold);
+  }
+
+  /**
+   * Set PHA max threshold
+   * 
+   * @param chan
+   * @param threshold
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetPhaMaxThreshold(long chan, long threshold)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_SET_PHA_MAX_THRESHOLD, chan, threshold);
   }
 
   /**
@@ -281,51 +528,8 @@ System.out.println("trying to set acquisiton time to "+value);
   synchronized public static void mcphaResetTimer(long chan)
     throws IOException
   {
-    DataOutputStream dos = new DataOutputStream(deviceSocket.getOutputStream());
-    long b = (long)(MCPHA_COMMAND_RESET_TIMER << 56) | (validateChannel(chan) << 52) | 0L;
-    dos.writeLong(Long.reverseBytes(b));
+    sendCommand(MCPHA_COMMAND_RESET_TIMER, chan, 0L);
   }
-
-  /**
-   * Reset timer
-   * 
-   * @param chan 
-   * @throws java.io.IOException 
-   */
-  synchronized public static void mcphaResetHistogram(long chan)
-    throws IOException
-  {
-    DataOutputStream dos = new DataOutputStream(deviceSocket.getOutputStream());
-    long b = (long)(MCPHA_COMMAND_RESET_HISTOGRAM << 56) | (validateChannel(chan) << 52) | 0L;
-    dos.writeLong(Long.reverseBytes(b));
-  }
-
-  /**
-   * Reset oscilloscope
-   * 
-   * @throws java.io.IOException 
-   */
-  synchronized public static void mcphaResetOscilloscope()
-    throws IOException
-  {
-    DataOutputStream dos = new DataOutputStream(deviceSocket.getOutputStream());
-    long b = (long)(MCPHA_COMMAND_RESET_OSCILLOSCOPE << 56) | (0L << 52) | 0L;
-    dos.writeLong(Long.reverseBytes(b));
-  }
-
-  /**
-   * Reset generator
-   * 
-   * @throws java.io.IOException 
-   */
-  synchronized public static void mcphaResetGenerator()
-    throws IOException
-  {
-    DataOutputStream dos = new DataOutputStream(deviceSocket.getOutputStream());
-    long b = (long)(MCPHA_COMMAND_RESET_GENERATOR << 56) | (0L << 52) | 0L;
-    dos.writeLong(Long.reverseBytes(b));
-  }
-
   
   /**
    * Set timer value
@@ -337,26 +541,116 @@ System.out.println("trying to set acquisiton time to "+value);
   synchronized public static void mcphaSetTimerValue(long chan, long value)
     throws IOException
   {
-    DataOutputStream dos = new DataOutputStream(deviceSocket.getOutputStream());
-    long b = (long)(MCPHA_COMMAND_SET_TIMER_VALUE << 56) | (validateChannel(chan)  << 52) | value;
-    dos.writeLong(Long.reverseBytes(b));
+    sendCommand(MCPHA_COMMAND_SET_TIMER_VALUE, chan, value);
   }
 
   /**
-   * Set timer mode
+   * Set timer mode, 0 for stop and 1 for running
    * 
    * @param chan
-   * @param value
+   * @param mode
    * @throws java.io.IOException 
    */
-  synchronized public static void mcphaSetTimerMode(long chan, long value)
+  synchronized public static void mcphaSetTimerMode(long chan, long mode)
     throws IOException
   {
-    DataOutputStream dos = new DataOutputStream(deviceSocket.getOutputStream());
-    long b = (long)(MCPHA_COMMAND_SET_TIMER_MODE << 56) | (validateChannel(chan)  << 52) | value;
-    dos.writeLong(Long.reverseBytes(b));
+    sendCommand(MCPHA_COMMAND_SET_TIMER_MODE, chan, mode);
   }
 
+  /**
+   * Get timer value
+   * 
+   * @param chan
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaGetTimerValue(long chan)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_READ_TIMER, chan, 0L);
+    
+    // read response
+    DataInputStream in = new DataInputStream(deviceSocket.getInputStream());
+//    short number  = Short.reverseBytes(in.readShort());
+//    System.out.println("response->"+number);
+    byte[] b = new byte[8];
+    
+    in.readFully(b);
+    
+    for (int i=0; i<b.length; i++)
+    {
+      System.out.format("[%d]=%d\n", i, (int)b[i]);
+    }
+    
+    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
+    wrapped.order(ByteOrder.LITTLE_ENDIAN);
+    float num = wrapped.getFloat();
+    
+    System.out.println("number="+num);
+//    
+//    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
+//    wrapped.order(ByteOrder.nativeOrder());
+//    short num = Short.reverseBytes(wrapped.getShort());
+//    
+//    System.out.println("number="+num);
+  }
+
+  /**
+   * Get histogram
+   * 
+   * @param chan
+   * @return 
+   * @throws java.io.IOException 
+   */
+  synchronized public static int[] mcphaGetHistogram(long chan)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_READ_HISTOGRAM, chan, 0);
+
+    DataInputStream in = new DataInputStream(deviceSocket.getInputStream());
+    
+    byte[] b = new byte[65536];
+    
+    in.readFully(b);
+    
+//    for (int i=1; i<b.length; i++)
+//    {
+//      System.out.format("[%d=%d]", i, (int)b[i]);
+//      if (i%10 == 0)
+//      {
+//        System.out.println();
+//      }
+//    }
+    
+    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
+    wrapped.order(ByteOrder.nativeOrder());
+    
+    IntBuffer ib = wrapped.asIntBuffer();
+    int[] data = new int[16300];
+    
+    for (int i=0; i<data.length; i++)
+    {
+      data[i] = ib.get();
+    }
+    
+    return data;
+  }
+
+  /**
+   * Send command to device
+   * 
+   * @param code
+   * @param chan
+   * @param data 
+   */
+  private static void sendCommand(long code, long chan, long data)
+    throws IOException
+  {
+System.out.println(">>>>>>>>>>>>> code="+code+", chan="+chan+", data="+data);
+    DataOutputStream out = new DataOutputStream(deviceSocket.getOutputStream());
+    long b = (long)(code << SHIFT_CODE) | (validateChannel(chan)  << SHIFT_CHAN) | data;
+    out.writeLong(Long.reverseBytes(b));
+  }
+  
   /**
    * 
    * @param chan

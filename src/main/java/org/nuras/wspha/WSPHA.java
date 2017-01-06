@@ -45,10 +45,10 @@ public class WSPHA
 {
   static class ROI
   {
-    public int roi;
-    public int start;
-    public int end;
-    public long counts;
+    public int roi = 0;
+    public int start = 0;
+    public int end = 0;
+    public long counts = 0;
   }
   
   private static final int SHIFT_CODE = 56;
@@ -173,9 +173,12 @@ System.out.println("SEND_MESSAGE:"+json);
   {
     try
     {
-      deviceSocket = new Socket();
-      deviceSocket.connect(new InetSocketAddress(deviceip,port), 8000);
-      deviceSocket.setSoTimeout(60000);
+      if (deviceSocket == null || !deviceSocket.isConnected())
+      {
+        deviceSocket = new Socket();
+        deviceSocket.connect(new InetSocketAddress(deviceip,port), 8000);
+        deviceSocket.setSoTimeout(60000);
+      }
       
       // initialise device
 //      mcphaResetTimer(0);
@@ -305,9 +308,6 @@ System.out.println("SEND_MESSAGE:"+json);
 System.out.println("trying to set acquisiton time to "+value);
     try
     {
-//      deviceSocket = new Socket();
-//      deviceSocket.connect(new InetSocketAddress(deviceip,port), 8000);
-      
       JSONObject json = new JSONObject();
       json.put("command", "connect");
       json.put("message", "Successful");
@@ -351,7 +351,7 @@ System.out.println("trying to set acquisiton time to "+value);
       {
         JSONObject json = new JSONObject();
         json.put("command", "connect");
-        json.put("message", String.format("ROI numbeer (%d) outside range.", roi));
+        json.put("message", String.format("ROI number [%d] outside range of 1 to 3.", roi));
         json.put("status", 1);
         sendJSONObjectMessage( user.getRemote(), json);
       }

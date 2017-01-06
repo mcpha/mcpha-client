@@ -70,17 +70,16 @@ limitations under the License.
             msg = JSON.parse(evt.data);
             if (msg.command === "connect") {
               logMessage(">>"+evt.data);
-              if (msg.type === "req") {
-                return;
-              }
-              if (msg.status === 0) {
-                $.notify(msg.message, "success");
-                updateConnectionStatus("rpce");
-                $( "#deviceip" ).text("Disconnect from Device");
-              } else {
-                $.notify(msg.message, "error");
-                updateConnectionStatus("rpcd");
-                $( "#deviceip" ).text("Connect to Device");
+              if (msg.type !== "req") {
+                if (msg.status === 0) {
+                  $.notify(msg.message, "success");
+                  updateConnectionStatus("rpce");
+                  $( "#deviceip" ).text("Disconnect from Device");
+                } else {
+                  $.notify(msg.message, "error");
+                  updateConnectionStatus("rpcd");
+                  $( "#deviceip" ).text("Connect to Device");
+                }
               }
             } else if (msg.command === "disconnect") {
               logMessage(">>"+evt.data);
@@ -109,25 +108,34 @@ limitations under the License.
               logMessage(">>"+evt.data);
               if (msg.type === "req") {
                 $( "#acqtime_s" ).text(msg.value);                
-                return;
-              }
-              if (msg.status === 0) {
-                
               } else {
+                if (msg.status === 0) {
+                  
+                } else {
                 
+                }
               }
             } else if (msg.command === "set_roi") {
               logMessage(">>"+evt.data);
-              if (msg.type === "req") {
-                return;
-              }
-              if (msg.status === 0) {
-                if (msg.roi === 1) {
-                  $( "#roi1_counts" ).text(msg.counts);
-                } else if (msg.roi === 2) {
-                  $( "#roi2_counts" ).text(msg.counts);
-                } else if (msg.roi === 3) {
-                  $( "#roi3_counts" ).text(msg.counts);
+              roi2set = "";
+              if (msg.type !== "req") {
+                if (msg.status === 0) {
+                  if (msg.roi === 1) {
+                    localStorage.setItem('rp_roi1_start', msg.start);
+                    localStorage.setItem('rp_roi1_end', msg.end);
+                    $( "#roi1_counts" ).text(msg.counts);
+                    $( "#roi1_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
+                  } else if (msg.roi === 2) {
+                    localStorage.setItem('rp_roi2_start', msg.start);
+                    localStorage.setItem('rp_roi2_end', msg.end);
+                    $( "#roi2_counts" ).text(msg.counts);
+                    $( "#roi2_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
+                  } else if (msg.roi === 3) {
+                    localStorage.setItem('rp_roi3_start', msg.start);
+                    localStorage.setItem('rp_roi3_end', msg.end);
+                    $( "#roi3_counts" ).text(msg.counts);
+                    $( "#roi3_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
+                  }
                 }
               }
             }
@@ -279,6 +287,41 @@ limitations under the License.
               ws.send("{\"type\":\"req\",\"command\":\"connect\",\"deviceip\":\""+$("#ipaddr").val()+"\",\"port\":"+$("#port").val()+"}");
               // close dialog
               dialog_ipaddr.dialog( "close" );
+              // set initial roi #1 value
+              if (localStorage.getItem('rp_roi1_start') === null) {
+                $( "#roi1_counts" ).text(0);
+              } else {
+                ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":1,\"from\":"+localStorage.getItem('rp_roi1_start')+",\"to\":"+localStorage.getItem('rp_roi1_end')+"}");
+              }
+              // install click handler
+              $("#roi1").click(function () {
+                roi2set = "1";
+                $.notify("Select ROI #1 region using mouse", "info");
+              });
+
+              // set initial roi #2 value
+              if (localStorage.getItem('rp_roi2_start') === null) {
+                $( "#roi2_counts" ).text(0);
+              } else {
+                ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":2,\"from\":"+localStorage.getItem('rp_roi2_start')+",\"to\":"+localStorage.getItem('rp_roi2_end')+"}");
+              }
+              // install click handler
+              $("#roi2").click(function () {
+                roi2set = "2";
+                $.notify("Select ROI #2 region using mouse", "info");
+              });
+
+              // set initial roi #3 value
+              if (localStorage.getItem('rp_roi3_start') === null) {
+                $( "#roi3_counts" ).text(0);
+              } else {
+                ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":3,\"from\":"+localStorage.getItem('rp_roi3_start')+",\"to\":"+localStorage.getItem('rp_roi3_end')+"}");
+              }
+              // install click handler
+              $("#roi3").click(function () {
+                roi2set = "3";
+                $.notify("Select ROI #3 region using mouse", "info");
+              });
             },
             Cancel: function() {
               dialog_ipaddr.dialog( "close" );
@@ -514,61 +557,29 @@ limitations under the License.
         });
 
         // set initial roi #1 value
-        $( "#roi1_value" ).text("0");
-        // install click handler
-        $("#roi1").click(function () {
-          roi2set = "1";
-          $.notify("Select ROI #1 region using mouse", "info");
-        });
+        $( "#roi1_counts" ).text(0);
+        $( "#roi2_counts" ).text(0);
+        $( "#roi3_counts" ).text(0);
 
-        // set initial roi #2 value
-        $( "#roi2_value" ).text("0");
-        // install click handler
-        $("#roi2").click(function () {
-          roi2set = "2";
-          $.notify("Select ROI #2 region using mouse", "info");
-        });
-
-        // set initial roi #3 value
-        $( "#roi3_value" ).text("0");
         // install click handler
         $("#roi3").click(function () {
           roi2set = "3";
           $.notify("Select ROI #3 region using mouse", "info");
         });
 
-        function getdata() {
-          var dataurl = "data-usa-gdp-growth.json";
-
-          function onDataReceived(series) {
-
-            data.push(series);
-
-            $.plot("#spectrum-placeholder", data, options);
-          }
-
-          $.ajax({
-            url: dataurl,
-            type: "GET",
-            dataType: "json",
-            success: onDataReceived
-          });
-        }
-
-        // Load the first series by default, so we don't have an empty plot
-
-//        getdata();
         $("#spectrum-placeholder").bind("plotselected", function (event, ranges) {
-          // $("#selection").text(ranges.xaxis.from.toFixed(1) + " to " + ranges.xaxis.to.toFixed(1));
-          ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+roi2set+",\"from\":"+ranges.xaxis.from.toFixed(0)+",\"to\":"+ranges.xaxis.to.toFixed(0)+"}");
-          plot.clearSelection();
+          if (roi2set !== "") {
+            // $("#selection").text(ranges.xaxis.from.toFixed(1) + " to " + ranges.xaxis.to.toFixed(1));
+            ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+roi2set+",\"from\":"+ranges.xaxis.from.toFixed(0)+",\"to\":"+ranges.xaxis.to.toFixed(0)+"}");
+            plot.clearSelection();
+          }
         });
 
         $("#spectrum-placeholder").bind("plothover", function (event, pos, item) {
           if (data.length > 0) {
             $("#cursor").text(pos.x.toFixed(0));
             if (yscale === "ln") {
-              $("#counts").text(pos.y.toFixed(2));
+              $("#counts").text(pos.y.toFixed(0));
             } else if (yscale === "sq") {
               $("#counts").text(pos.y.toFixed(2)*pos.y.toFixed(2));
             } else if (yscale === "lg") {

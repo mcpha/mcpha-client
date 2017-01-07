@@ -31,7 +31,11 @@ limitations under the License.
     <script type="text/javascript">
 
       $(function () {
-
+        
+        var hdata, hlabel, r1data, r1label, r2data, r2label, r3data, r3label;
+        
+        var plot;
+        
         var ws;
         
         // Check that page is loaded via http protocol
@@ -75,6 +79,41 @@ limitations under the License.
                   $.notify(msg.message, "success");
                   updateConnectionStatus("rpce");
                   $( "#deviceip" ).text("Disconnect from Device");
+                  // set initial roi #1 value
+                  if (localStorage.getItem('rp_roi1_start') === null) {
+                    $( "#roi1_counts" ).text(0);
+                  } else {
+                    ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":1,\"from\":"+localStorage.getItem('rp_roi1_start')+",\"to\":"+localStorage.getItem('rp_roi1_end')+"}");
+                  }
+                  // install click handler
+                  $("#roi1").click(function () {
+                    roi2set = "1";
+                    $.notify("Select ROI #1 region using mouse", "info");
+                  });
+
+                  // set initial roi #2 value
+                  if (localStorage.getItem('rp_roi2_start') === null) {
+                    $( "#roi2_counts" ).text(0);
+                  } else {
+                    ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":2,\"from\":"+localStorage.getItem('rp_roi2_start')+",\"to\":"+localStorage.getItem('rp_roi2_end')+"}");
+                  }
+                  // install click handler
+                  $("#roi2").click(function () {
+                    roi2set = "2";
+                    $.notify("Select ROI #2 region using mouse", "info");
+                  });
+
+                  // set initial roi #3 value
+                  if (localStorage.getItem('rp_roi3_start') === null) {
+                    $( "#roi3_counts" ).text(0);
+                  } else {
+                    ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":3,\"from\":"+localStorage.getItem('rp_roi3_start')+",\"to\":"+localStorage.getItem('rp_roi3_end')+"}");
+                  }
+                  // install click handler
+                  $("#roi3").click(function () {
+                    roi2set = "3";
+                    $.notify("Select ROI #3 region using mouse", "info");
+                  });
                 } else {
                   $.notify(msg.message, "error");
                   updateConnectionStatus("rpcd");
@@ -88,19 +127,38 @@ limitations under the License.
                 updateConnectionStatus("rpcd");
                 $( "#deviceip" ).text("Connect to Device");
               } else {
-                $.notify(msg.message, "error");                
+                $.notify(msg.message, "error");
               }
-            } else if (msg.command === "getdata") {
+            } else if (msg.command === "get_histogram_data") {
               if (msg.status === 0) {
+                $( "#elapsedtime" ).text(msg.timer);                
                 var axis = plot.getAxes();
                 options.xaxis.min = 0;
                 options.xaxis.max = 16300;
                 options.yaxis.min = 0;
                 options.yaxis.max = 4000;
                 options.xaxis.tickSize = 1000;
-                data.length = 0;
-                data.push({label:msg.label, data:msg.data});
-                $.plot("#spectrum-placeholder", data, options);
+                plotData(msg.label, msg.data, null, null, null, null, null, null, options);
+              } else {
+                $.notify(msg.message, "error");                
+              }
+            } else if (msg.command === "get_roi_data") {
+              if (msg.status === 0) {
+                if (typeof msg.roi1 !== "undefined") {
+                  $("#roi1_counts").text(msg.roi1.counts);
+                  $("#roi1_counts").prop("title", "From "+msg.roi1.start+" to "+msg.roi1.end);
+                  plotData(null, null, msg.roi1.label, msg.roi1.data, null, null, null, null, options);
+                }
+                if (typeof msg.roi2 !== "undefined") {
+                  $("#roi2_counts").text(msg.roi2.counts);
+                  $("#roi2_counts").prop("title", "From "+msg.roi2.start+" to "+msg.roi2.end);
+                  plotData(null, null, null, null, msg.roi2.label, msg.roi2.data, null, null, options);
+                }
+                if (typeof msg.roi3 !== "undefined") {
+                  $("#roi3_counts").text(msg.roi3.counts);
+                  $("#roi3_counts").prop("title", "From "+msg.roi3.start+" to "+msg.roi3.end);
+                  plotData(null, null, null, null, null, null, msg.roi3.label, msg.roi3.data, options);
+                }
               } else {
                 $.notify(msg.message, "error");                
               }
@@ -154,7 +212,56 @@ limitations under the License.
           document.write("ERROR: This browser does NOT support websockets. Please use a HTML5 compliant browser.");
           return;
         }
+        
+        function plotData(histogram_label, histogram_data, roi1_label, roi1_data, roi2_label, roi2_data, roi3_label, roi3_data, params) {
+          var data = [];
+          if (histogram_data !== null) {
+            hdata = histogram_data;
+            hlabel = histogram_label;
+            data.push({label:histogram_label, data:histogram_data});
+          } else {
+            data.push({label:hlabel, data:hdata});
+          }
+          
+          if (roi1_data !== null) {
+            r1label = roi1_label;
+            r1data = roi1_data;
+            data.push({label:roi1_label, data:roi1_data});
+          } else {
+            data.push({label:r1label, data:r1data});
+          }
+          
+          if (roi2_data !== null) {
+            r2label = roi2_label;
+            r2data = roi2_data;
+            data.push({label:roi2_label, data:roi2_data});
+          } else {
+            data.push({label:r2label, data:r2data});
+          }
+          
+          if (roi3_data !== null) {
+            r3label = roi3_label;
+            r3data = roi3_data;
+            data.push({label:roi3_label, data:roi3_data});
+          } else {
+            data.push({label:r3label, data:r3data});
+          }
+          
+          plot = $.plot("#spectrum-placeholder", data, params);
+        }
 
+        
+        function replot(params) {
+          var data = [];
+          data.push({label:hlabel, data:hdata});
+          data.push({label:r1label, data:r1data});
+          data.push({label:r2label, data:r2data});
+          data.push({label:r3label, data:r3data});
+          
+          plot = $.plot("#spectrum-placeholder", data, params);
+        }
+
+        
         function logMessage(message) {
           $("<p>"+message+"</p>").appendTo('#message-log');
         }
@@ -287,41 +394,6 @@ limitations under the License.
               ws.send("{\"type\":\"req\",\"command\":\"connect\",\"deviceip\":\""+$("#ipaddr").val()+"\",\"port\":"+$("#port").val()+"}");
               // close dialog
               dialog_ipaddr.dialog( "close" );
-              // set initial roi #1 value
-              if (localStorage.getItem('rp_roi1_start') === null) {
-                $( "#roi1_counts" ).text(0);
-              } else {
-                ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":1,\"from\":"+localStorage.getItem('rp_roi1_start')+",\"to\":"+localStorage.getItem('rp_roi1_end')+"}");
-              }
-              // install click handler
-              $("#roi1").click(function () {
-                roi2set = "1";
-                $.notify("Select ROI #1 region using mouse", "info");
-              });
-
-              // set initial roi #2 value
-              if (localStorage.getItem('rp_roi2_start') === null) {
-                $( "#roi2_counts" ).text(0);
-              } else {
-                ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":2,\"from\":"+localStorage.getItem('rp_roi2_start')+",\"to\":"+localStorage.getItem('rp_roi2_end')+"}");
-              }
-              // install click handler
-              $("#roi2").click(function () {
-                roi2set = "2";
-                $.notify("Select ROI #2 region using mouse", "info");
-              });
-
-              // set initial roi #3 value
-              if (localStorage.getItem('rp_roi3_start') === null) {
-                $( "#roi3_counts" ).text(0);
-              } else {
-                ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":3,\"from\":"+localStorage.getItem('rp_roi3_start')+",\"to\":"+localStorage.getItem('rp_roi3_end')+"}");
-              }
-              // install click handler
-              $("#roi3").click(function () {
-                roi2set = "3";
-                $.notify("Select ROI #3 region using mouse", "info");
-              });
             },
             Cancel: function() {
               dialog_ipaddr.dialog( "close" );
@@ -424,10 +496,8 @@ limitations under the License.
         var yscale = "ln";
         
         var roi2set = "";
-        
-        var data = [];
 
-        var plot = $.plot("#spectrum-placeholder", data, options);
+        plot = $.plot("#spectrum-placeholder", [], options);
 
         // Fetch one series, adding to what we already have
         $("#spectrum-placeholder").bind("plothover", function(event, pos, item) {
@@ -447,7 +517,7 @@ limitations under the License.
           options.yaxis.transform = null;
           options.yaxis.tickDecimals = null;
           options.yaxis.tickFormatter = null;
-          plot = $.plot("#spectrum-placeholder", data, options);
+          replot(options);
         });
 
         // Set Y display to square root
@@ -459,7 +529,7 @@ limitations under the License.
           };
           options.yaxis.tickDecimals = null;
           options.yaxis.tickFormatter = null;
-          plot = $.plot("#spectrum-placeholder", data, options);
+          replot(options);
         });
 
         // Set Y display to log10
@@ -473,7 +543,7 @@ limitations under the License.
           options.yaxis.tickFormatter = function (v, axis) {
             return "10" + (Math.round( Math.log10(v)/Math.LN10)).toString().sup();
           };
-          plot = $.plot("#spectrum-placeholder", data, options);
+          replot(options);
         });
 
         // zoom to full channel extent button click handler
@@ -483,7 +553,7 @@ limitations under the License.
           options.xaxis.max = Math.ceil(axis.xaxis.datamax);
           options.yaxis.min = 0;
           options.yaxis.max = Math.ceil(axis.yaxis.datamax);
-          plot = $.plot("#spectrum-placeholder", data, options);
+          replot(options);
         });
 
         $("button.zoom-in-button").click(function () {
@@ -500,7 +570,7 @@ limitations under the License.
           if (options.xaxis.max > axis.xaxis.datamax) {
             options.xaxis.max = axis.xaxis.datamax;
           }
-          plot = $.plot("#spectrum-placeholder", data, options);
+          replot(options);
         });
 
         $("button.zoom-out-button").click(function () {
@@ -517,14 +587,14 @@ limitations under the License.
           if (options.xaxis.max > axis.xaxis.datamax) {
             options.xaxis.max = axis.xaxis.datamax;
           }
-          plot = $.plot("#spectrum-placeholder", data, options);
+          replot(options);
         });
 
         $("button.pan-button").click(function () {
 //          plot.pan({ left: -2 });
           options.xaxis.min = 5400;
           options.xaxis.max = 5500;
-          plot = $.plot("#spectrum-placeholder", data, options);
+          replot(options);
         });
 
         // set initial acquisition time
@@ -576,7 +646,7 @@ limitations under the License.
         });
 
         $("#spectrum-placeholder").bind("plothover", function (event, pos, item) {
-          if (data.length > 0) {
+          if (plot.getData().length > 0) {
             $("#cursor").text(pos.x.toFixed(0));
             if (yscale === "ln") {
               $("#counts").text(pos.y.toFixed(0));

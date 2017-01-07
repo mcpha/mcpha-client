@@ -45,11 +45,12 @@ public class WSPHA
 {
   static class ROI
   {
-    public int roi = 0;
     public int start = 0;
     public int end = 0;
-    public long counts = 0;
+    public long counts = -1;
   }
+
+  private static final double TIME_PER_TICK = 8E-9;
   
   private static final int SHIFT_CODE = 56;
   
@@ -179,15 +180,6 @@ System.out.println("SEND_MESSAGE:"+json);
         deviceSocket.connect(new InetSocketAddress(deviceip,port), 8000);
         deviceSocket.setSoTimeout(60000);
       }
-      
-      // initialise device
-//      mcphaResetTimer(0);
-//      mcphaResetHistogram(0);
-      
-//      mcphaSetSampleRate(4);
-      histogram_data = mcphaGetHistogram(0);
-//      mcphaSetTimerValue(0, 60000);
-//      mcphaGetTimerValue(0);
 
       JSONObject json = new JSONObject();
       json.put("command", "connect");
@@ -195,38 +187,13 @@ System.out.println("SEND_MESSAGE:"+json);
       json.put("status", 0);
       sendJSONObjectMessage( user.getRemote(), json);
 
-      // push data
-      json = new JSONObject();
-      json.put("command", "getdata");
-      json.put("message", "");
-      json.put("status", 0);
-      json.put("label", "histogram");
       
-      JSONArray arr = new JSONArray();
-      for (int i=0; i<histogram_data.length; i++)
-      {
-        JSONArray xy = new JSONArray();
-        xy.put(i).put(histogram_data[i]);
-        arr.put(xy);
-      }
-      json.put("data", arr);
-
-//      JSONArray arr = new JSONArray();
-//      for (int i=1; i<data.length; i++)
-//      {
-//        JSONArray xy = new JSONArray();
-//        xy.put(i-1).put(data[i-1]);
-//        arr.put(xy);
-//        xy = new JSONArray();
-//        xy.put(i).put(data[i-1]);
-//        arr.put(xy);
-//        xy = new JSONArray();
-//        xy.put(i).put(data[i]);
-//        arr.put(xy);
-//      }
-//      json.put("data", arr);
+      // initialise device
+//      mcphaResetTimer(0);
+//      mcphaResetHistogram(0);
       
-      sendJSONObjectMessage(user.getRemote(), json);
+      // get histgram data
+      getHistogramData(user, 0);
     }
     catch (IOException ex)
     {
@@ -301,6 +268,83 @@ System.out.println("SEND_MESSAGE:"+json);
   /**
    * 
    * @param user
+   * @param chan
+   * @throws IOException 
+   */
+  synchronized public static void getHistogramData(Session user, long chan)
+    throws IOException
+  {
+    // get elapsed time
+    double t = mcphaGetTimerValue(chan);
+
+    // get histogram data
+    histogram_data = mcphaGetHistogram(chan);
+
+    // push data
+    JSONObject json = new JSONObject();
+    json.put("command", "get_histogram_data");
+    json.put("message", "");
+    json.put("status", 0);
+    json.put("timer", String.format("%.2f", t));
+    json.put("label", "histogram");
+
+    JSONArray arr = new JSONArray();
+    for (int i=0; i<histogram_data.length; i++)
+    {
+      JSONArray xy = new JSONArray();
+      xy.put(i).put(histogram_data[i]);
+      arr.put(xy);
+    }
+    json.put("data", arr);
+
+    for (int i=1; i<=3; i++)
+    {
+      JSONObject roi = getRoiJSONObject(1);
+      if (roi != null)
+      {
+        json.put("roi"+i, roi);
+      }
+    }
+        
+    sendJSONObjectMessage(user.getRemote(), json);
+  }
+
+  /**
+   * 
+   * @param roi
+   * @return 
+   */
+  synchronized public static JSONObject getRoiJSONObject(int roi)
+  {
+    JSONObject json = null;
+    
+    if (histogram_data != null && rois[roi-1].counts != -1)
+    {
+      long counts = 0;
+      
+      JSONArray data = new JSONArray();
+      for (int i=rois[roi-1].start; i<=rois[roi-1].end; i++)
+      {
+        JSONArray o = new JSONArray();
+        o.put(i).put(histogram_data[i]);
+        data.put(o);
+        counts += histogram_data[i];
+      }
+
+      json = new JSONObject();
+      json.put("label", "ROI #"+roi);
+      json.put("counts", counts);
+      json.put("start", rois[roi-1].start);
+      json.put("end", rois[roi-1].end);
+      json.put("data", data);
+    }
+    
+    return json;
+  }
+  
+  /**
+   * 
+   * @param user
    * @param value
    */
   synchronized public static void setAcquisitionTime(Session user, long value)
@@ -347,46 +391,26 @@ System.out.println("trying to set acquisiton time to "+value);
     
     if (roi < 1 || roi > 3)
     {
-      try
-      {
-        JSONObject json = new JSONObject();
-        json.put("command", "connect");
-        json.put("message", String.format("ROI number [%d] outside range of 1 to 3.", roi));
-        json.put("status", 1);
-        sendJSONObjectMessage( user.getRemote(), json);
-      }
-      catch (IOException ex1)
-      {
-        Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
-      }
+      JSONObject json = new JSONObject();
+      json.put("command", "connect");
+      json.put("message", String.format("ROI number [%d] outside range of 1 to 3.", roi));
+      json.put("status", 1);
+      sendJSONObjectMessage( user.getRemote(), json);
     }
     
     rois[roi-1].start = start;
     rois[roi-1].end = end;
+    rois[roi-1].counts = 0L;
 
-    if (histogram_data != null)
+    JSONObject json = getRoiJSONObject(roi);
+    if (json != null)
     {
-      long counts = 0;
-      for (int i=start; i<=end; i++)
-      {
-        counts += histogram_data[i];
-      }
-      try
-      {
-        JSONObject json = new JSONObject();
-        json.put("command", "set_roi");
-        json.put("message", "");
-        json.put("status", 0);
-        json.put("roi", roi);
-        json.put("start", start);
-        json.put("end", end);
-        json.put("counts", counts);
-        sendJSONObjectMessage( user.getRemote(), json);
-      }
-      catch (IOException ex1)
-      {
-        Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
-      }
+      JSONObject o = new JSONObject();
+      o.put("command", "get_roi_data");
+      o.put("message", "");
+      o.put("roi"+roi, json);
+      o.put("status", 0);
+      sendJSONObjectMessage(user.getRemote(), o);
     }
   }
 
@@ -558,40 +582,24 @@ System.out.println("trying to set acquisiton time to "+value);
   }
 
   /**
-   * Get timer value
+   * Get timer value in seconds which is derived from the 64-bit unsigned
+   * integer value returned from the server, that is the number of counts
+   * at 125MHz from the start of the aquisition.
    * 
    * @param chan
    * @throws java.io.IOException 
    */
-  synchronized public static void mcphaGetTimerValue(long chan)
+  synchronized public static double mcphaGetTimerValue(long chan)
     throws IOException
   {
     sendCommand(MCPHA_COMMAND_READ_TIMER, chan, 0L);
     
     // read response
     DataInputStream in = new DataInputStream(deviceSocket.getInputStream());
-//    short number  = Short.reverseBytes(in.readShort());
-//    System.out.println("response->"+number);
-    byte[] b = new byte[8];
     
-    in.readFully(b);
-    
-    for (int i=0; i<b.length; i++)
-    {
-      System.out.format("[%d]=%d\n", i, (int)b[i]);
-    }
-    
-    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
-    wrapped.order(ByteOrder.LITTLE_ENDIAN);
-    float num = wrapped.getFloat();
-    
-    System.out.println("number="+num);
-//    
-//    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
-//    wrapped.order(ByteOrder.nativeOrder());
-//    short num = Short.reverseBytes(wrapped.getShort());
-//    
-//    System.out.println("number="+num);
+    long number  = Long.reverseBytes(in.readLong());
+
+    return (double)number * TIME_PER_TICK; 
   }
 
   /**

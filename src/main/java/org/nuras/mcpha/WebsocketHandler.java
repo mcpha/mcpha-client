@@ -15,6 +15,7 @@
  */
 package org.nuras.mcpha;
 
+import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -93,7 +94,7 @@ System.out.println("onMessage - sender="+sender+", message="+message);
         Client.mcphaSetRoi(user, (int)roi, (int)start, (int)end);
       }
     }
-    catch (ParseException ex)
+    catch (ParseException | IOException ex)
     {
       Logger.getLogger(WebsocketHandler.class.getName()).log(Level.SEVERE, null, ex);
     }

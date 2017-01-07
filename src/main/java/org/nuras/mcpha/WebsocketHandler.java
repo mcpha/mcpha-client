@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.nuras.wspha;
+package org.nuras.mcpha;
 
-import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,8 +37,8 @@ public class WebsocketHandler
   @OnWebSocketConnect
   public void onConnect(Session user) throws Exception
   {
-    String username = "User" + WSPHA.nextUserNumber++;
-    WSPHA.userUsernameMap.put(user, username);
+    String username = "User" + Client.nextUserNumber++;
+    Client.userUsernameMap.put(user, username);
 //    WSPHA.broadcastMessage(sender = "Server", msg = (username + " joined the chat"));
 System.out.println("onConnect - username="+username);
   }
@@ -47,9 +46,9 @@ System.out.println("onConnect - username="+username);
   @OnWebSocketClose
   public void onClose(Session user, int statusCode, String reason)
   {
-    String username = WSPHA.userUsernameMap.get(user);
-    WSPHA.userUsernameMap.remove(user);
-    WSPHA.broadcastMessage(sender = "Server", msg = (username + " left the chat"));
+    String username = Client.userUsernameMap.get(user);
+    Client.userUsernameMap.remove(user);
+    Client.broadcastMessage(sender = "Server", msg = (username + " left the chat"));
 System.out.println("onColose - username="+username);
   }
 
@@ -60,7 +59,7 @@ System.out.println("onColose - username="+username);
     JSONParser parser = new JSONParser();
     try
     {
-      WSPHA.sendJSONTextMessage(user.getRemote(), message);
+      Client.sendJSONTextMessage(user.getRemote(), message);
 System.out.println("onMessage - sender="+sender+", message="+message);
 
       String msg;
@@ -70,31 +69,31 @@ System.out.println("onMessage - sender="+sender+", message="+message);
       {
         String deviceip = json.get("deviceip").toString();
         long port = (long)json.get("port");
-        WSPHA.connectToDevice(user, deviceip, (int)port);
+        Client.connectToDevice(user, deviceip, (int)port);
       }
       else if (command.equals("disconnect"))
       {
-        WSPHA.disconnectFromDevice(user);
+        Client.disconnectFromDevice(user);
       }
       else if (command.equals("set_acquisition_time"))
       {
         long value = (long)json.get("value");
-        WSPHA.setAcquisitionTime(user, value);
+        Client.setAcquisitionTime(user, value);
       }
       else if (command.equals("set_sample_rate"))
       {
         long value = (long)json.get("value");
-        WSPHA.mcphaSetSampleRate(value);
+        Client.mcphaSetSampleRate(value);
       }
       else if (command.equals("set_roi"))
       {
         long roi = (long)json.get("roi");
         long start = (long)json.get("from");
         long end = (long)json.get("to");
-        WSPHA.mcphaSetRoi(user, (int)roi, (int)start, (int)end);
+        Client.mcphaSetRoi(user, (int)roi, (int)start, (int)end);
       }
     }
-    catch (ParseException | IOException ex)
+    catch (ParseException ex)
     {
       Logger.getLogger(WebsocketHandler.class.getName()).log(Level.SEVERE, null, ex);
     }

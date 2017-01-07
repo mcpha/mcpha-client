@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.nuras.wspha;
+package org.nuras.mcpha;
 
 import org.eclipse.jetty.websocket.api.*;
 
@@ -41,7 +41,7 @@ import static spark.Spark.*;
  * 
  * @author John Preston<byhisdeeds@gmail.com>
  */
-public class WSPHA
+public class Client
 {
   static class ROI
   {
@@ -205,7 +205,7 @@ System.out.println("SEND_MESSAGE:"+json);
         }
         catch (IOException ex1)
         {
-          Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
+          Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex1);
         }
       }
       deviceSocket = null;
@@ -219,7 +219,7 @@ System.out.println("SEND_MESSAGE:"+json);
       }
       catch (IOException ex1)
       {
-        Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
+        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex1);
       }
     }
   }
@@ -260,7 +260,7 @@ System.out.println("SEND_MESSAGE:"+json);
       }
       catch (IOException ex1)
       {
-        Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
+        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex1);
       }
     }
   }
@@ -371,7 +371,7 @@ System.out.println("trying to set acquisiton time to "+value);
       }
       catch (IOException ex1)
       {
-        Logger.getLogger(WSPHA.class.getName()).log(Level.SEVERE, null, ex1);
+        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex1);
       }
     }
   }

@@ -54,18 +54,19 @@ System.out.println("onColose - username="+username);
   }
 
   @OnWebSocketMessage
-  public void onMessage(Session user, String message)
+  public void onMessage(final Session user, String message)
   {
+    String command = null;
     // parse json message
     JSONParser parser = new JSONParser();
     try
     {
       Client.sendJSONTextMessage(user.getRemote(), message);
-System.out.println("onMessage - sender="+sender+", message="+message);
+System.out.println("MSG_RECEIVED -- sender="+sender+", message="+message);
 
       String msg;
       JSONObject json = (JSONObject)parser.parse(message);
-      String command = json.get("command").toString();
+      command = json.get("command").toString();
       if (command.equals("connect"))
       {
         String deviceip = json.get("deviceip").toString();
@@ -93,10 +94,30 @@ System.out.println("onMessage - sender="+sender+", message="+message);
         long end = (long)json.get("to");
         Client.mcphaSetRoi(user, (int)roi, (int)start, (int)end);
       }
+      else if (command.equals("set_acquisition_state"))
+      {
+        long state = (long)json.get("state");
+        Client.mcphaSetAquisitionState(user, state);
+      }
+      else if (command.equals("get_acquisition_state"))
+      {
+        Client.mcphaGetAquisitionState(user);
+      }
     }
     catch (ParseException | IOException ex)
     {
-      Logger.getLogger(WebsocketHandler.class.getName()).log(Level.SEVERE, null, ex);
+      org.json.JSONObject j = new org.json.JSONObject();
+      j.put("command", command);
+      j.put("message", ex.toString());
+      j.put("status", 1);
+      try
+      {
+        Client.sendJSONObjectMessage(user.getRemote(), j);
+      }
+      catch (IOException ex1)
+      {
+        Logger.getLogger(WebsocketHandler.class.getName()).log(Level.SEVERE, null, ex1);
+      }
     }
   }
 

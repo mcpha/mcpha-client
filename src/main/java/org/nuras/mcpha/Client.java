@@ -17,8 +17,6 @@ package org.nuras.mcpha;
 
 import org.eclipse.jetty.websocket.api.*;
 
-import org.json.*;
-
 import java.text.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,13 +25,16 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static j2html.TagCreator.*;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+
+import static j2html.TagCreator.*;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import static spark.Spark.*;
 
@@ -92,7 +93,9 @@ public class Client
   
   static Socket deviceSocket = null;
   
-  static int[] histogram_data = null;
+  static IntBuffer histogram_data = null;
+  
+  static boolean acquisition_state_active = false;
   
   //Assign to username for next connecting user
   static int nextUserNumber = 1;
@@ -165,6 +168,18 @@ System.out.println("SEND_MESSAGE:"+json);
 
   /**
    * 
+   * @return 
+   */
+  private static JSONObject createJSONResponseObject()
+  {
+    JSONObject json = new JSONObject();
+    json.put("type", "resp");
+    
+    return json;
+  }
+  
+  /**
+   * 
    * @param user
    * @param deviceip
    * @param port 
@@ -181,7 +196,7 @@ System.out.println("SEND_MESSAGE:"+json);
         deviceSocket.setSoTimeout(60000);
       }
 
-      JSONObject json = new JSONObject();
+      JSONObject json = createJSONResponseObject();
       json.put("command", "connect");
       json.put("message", "Connection established");
       json.put("status", 0);
@@ -211,7 +226,7 @@ System.out.println("SEND_MESSAGE:"+json);
       deviceSocket = null;
       try
       {
-        JSONObject json = new JSONObject();
+        JSONObject json = createJSONResponseObject();
         json.put("command", "connect");
         json.put("message", ex.toString());
         json.put("status", 1);
@@ -225,43 +240,71 @@ System.out.println("SEND_MESSAGE:"+json);
   }
 
   /**
+   * Close socket and disconnect from Red Pitaya device.
    * 
    * @param user
+   * @throws java.io.IOException
    */
   synchronized public static void disconnectFromDevice(Session user)
+    throws IOException
   {
-    try
+    JSONObject json = createJSONResponseObject();
+    json.put("command", "disconnect");
+    json.put("status", 0);
+
+    if (deviceSocket == null)
     {
-      if (deviceSocket == null)
-      {
-        System.out.println("NO DEVICE CONNECTION");
-      }
-      else
-      {
-        deviceSocket.close();
-        deviceSocket = null;
-        JSONObject json = new JSONObject();
-        json.put("command", "disconnect");
-        json.put("message", "Device disconnected");
-        json.put("status", 0);
-        sendJSONObjectMessage(user.getRemote(), json);
-      }
+      json.put("message", "Nothing to do. Device not connected");
     }
-    catch (IOException ex)
+    else
     {
+      deviceSocket.close();
       deviceSocket = null;
-      try
-      {
-        JSONObject json = new JSONObject();
-        json.put("command", "disconnect");
-        json.put("message", ex.toString());
-        json.put("status", 0);
-        sendJSONObjectMessage( user.getRemote(), json);
-      }
-      catch (IOException ex1)
-      {
-        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex1);
-      }
+      json.put("message", "Device disconnected");
+    }
+    
+    sendJSONObjectMessage(user.getRemote(), json);
+  }
+
+  /**
+   * 
+   * @param user 
+   * @param state 
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetAquisitionState(Session user, long state)
+    throws IOException
+  {
+    if (deviceSocket != null)
+    {
+      mcphaSetTimerMode(0, state);
+      
+      acquisition_state_active = state == 1;
+      JSONObject json = createJSONResponseObject();
+      json.put("command", "set_acquisition_state");
+      json.put("message", "");
+      json.put("state", acquisition_state_active ? "active" : "inactive");
+      json.put("status", 0);
+      sendJSONObjectMessage(user.getRemote(), json);
+    }
+  }
+
+  /**
+   * 
+   * @param user 
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaGetAquisitionState(Session user)
+    throws IOException
+  {
+    if (deviceSocket != null)
+    {
+      JSONObject json = createJSONResponseObject();
+      json.put("command", "get_acquisition_state");
+      json.put("message", "");
+      json.put("state", acquisition_state_active ? "active" : "inactive");
+      json.put("status", 0);
+      sendJSONObjectMessage(user.getRemote(), json);
     }
   }
 
@@ -281,7 +324,7 @@ System.out.println("SEND_MESSAGE:"+json);
     histogram_data = mcphaGetHistogram(chan);
 
     // push data
-    JSONObject json = new JSONObject();
+    JSONObject json = createJSONResponseObject();
     json.put("command", "get_histogram_data");
     json.put("message", "");
     json.put("status", 0);
@@ -289,10 +332,10 @@ System.out.println("SEND_MESSAGE:"+json);
     json.put("label", "histogram");
 
     JSONArray arr = new JSONArray();
-    for (int i=0; i<histogram_data.length; i++)
+    for (int i=0; i<histogram_data.capacity(); i++)
     {
       JSONArray xy = new JSONArray();
-      xy.put(i).put(histogram_data[i]);
+      xy.put(i).put(histogram_data.get(i));
       arr.put(xy);
     }
     json.put("data", arr);
@@ -326,9 +369,10 @@ System.out.println("SEND_MESSAGE:"+json);
       for (int i=rois[roi-1].start; i<=rois[roi-1].end; i++)
       {
         JSONArray o = new JSONArray();
-        o.put(i).put(histogram_data[i]);
+        int y = histogram_data.get(i);
+        o.put(i).put(y);
         data.put(o);
-        counts += histogram_data[i];
+        counts += y;
       }
 
       json = new JSONObject();
@@ -349,10 +393,9 @@ System.out.println("SEND_MESSAGE:"+json);
    */
   synchronized public static void setAcquisitionTime(Session user, long value)
   {
-System.out.println("trying to set acquisiton time to "+value);
     try
     {
-      JSONObject json = new JSONObject();
+      JSONObject json = createJSONResponseObject();
       json.put("command", "connect");
       json.put("message", "Successful");
       json.put("status", 0);
@@ -363,7 +406,7 @@ System.out.println("trying to set acquisiton time to "+value);
       deviceSocket = null;
       try
       {
-        JSONObject json = new JSONObject();
+        JSONObject json = createJSONResponseObject();
         json.put("command", "connect");
         json.put("message", ex.toString());
         json.put("status", 1);
@@ -391,7 +434,7 @@ System.out.println("trying to set acquisiton time to "+value);
     
     if (roi < 1 || roi > 3)
     {
-      JSONObject json = new JSONObject();
+      JSONObject json = createJSONResponseObject();
       json.put("command", "connect");
       json.put("message", String.format("ROI number [%d] outside range of 1 to 3.", roi));
       json.put("status", 1);
@@ -405,7 +448,7 @@ System.out.println("trying to set acquisiton time to "+value);
     JSONObject json = getRoiJSONObject(roi);
     if (json != null)
     {
-      JSONObject o = new JSONObject();
+      JSONObject o = createJSONResponseObject();
       o.put("command", "get_roi_data");
       o.put("message", "");
       o.put("roi"+roi, json);
@@ -584,9 +627,10 @@ System.out.println("trying to set acquisiton time to "+value);
   /**
    * Get timer value in seconds which is derived from the 64-bit unsigned
    * integer value returned from the server, that is the number of counts
-   * at 125MHz from the start of the aquisition.
+   * at 125MHz from the start of the acquisition.
    * 
    * @param chan
+   * @return 
    * @throws java.io.IOException 
    */
   synchronized public static double mcphaGetTimerValue(long chan)
@@ -609,38 +653,40 @@ System.out.println("trying to set acquisiton time to "+value);
    * @return 
    * @throws java.io.IOException 
    */
-  synchronized public static int[] mcphaGetHistogram(long chan)
+  synchronized public static IntBuffer mcphaGetHistogram(long chan)
     throws IOException
   {
     sendCommand(MCPHA_COMMAND_READ_HISTOGRAM, chan, 0);
 
     DataInputStream in = new DataInputStream(deviceSocket.getInputStream());
     
-    byte[] b = new byte[65536];
+    ByteBuffer data = ByteBuffer.allocate(65536);
+    data.order(ByteOrder.nativeOrder());
+//    byte[] b = new byte[65536];
+    in.readFully(data.array());
     
-    in.readFully(b);
+////    for (int i=1; i<b.length; i++)
+////    {
+////      System.out.format("[%d=%d]", i, (int)b[i]);
+////      if (i%10 == 0)
+////      {
+////        System.out.println();
+////      }
+////    }
     
-//    for (int i=1; i<b.length; i++)
+//    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
+//    wrapped.order(ByteOrder.nativeOrder());
+    
+//    IntBuffer ib = wrapped.asIntBuffer();
+//    int[] data = new int[16301];
+    
+//    for (int i=0; i<data.length; i++)
 //    {
-//      System.out.format("[%d=%d]", i, (int)b[i]);
-//      if (i%10 == 0)
-//      {
-//        System.out.println();
-//      }
+//      data[i+1] = ib.get();
 //    }
     
-    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
-    wrapped.order(ByteOrder.nativeOrder());
-    
-    IntBuffer ib = wrapped.asIntBuffer();
-    int[] data = new int[16300];
-    
-    for (int i=0; i<data.length; i++)
-    {
-      data[i] = ib.get();
-    }
-    
-    return data;
+//    return data;
+    return data.asIntBuffer();
   }
 
   /**
@@ -676,15 +722,4 @@ System.out.println(">>>>>>>>>>>>> code="+code+", chan="+chan+", data="+data);
     
     return chan;
   }
-  
-  //Builds a HTML element with a sender-name, a message, and a timestamp,
-  private static String createHtmlMessageFromSender(String sender, String message)
-  {
-    return article().with(
-      b(sender + " says:"),
-      p(message),
-      span().withClass("timestamp").withText(new SimpleDateFormat("HH:mm:ss").format(new Date()))
-    ).render();
-  }
-
 }

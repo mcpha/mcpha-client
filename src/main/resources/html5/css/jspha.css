@@ -71,6 +71,13 @@ div#users-contain table td, div#users-contain table th {
   padding: 0.3em;
 }
 
+.button
+{
+  border-radius: 8px;
+  text-decoration: none;
+  display: inline-block;
+  padding: 10px 15px;
+}
 .ui-draggable, .ui-droppable {
   background-position: top;
 }
@@ -126,6 +133,7 @@ input[type=checkbox] {
   background-color: #555;
   color: white;
   height: 70vh;
+  overflow-y: auto;
 }
 
 #content {
@@ -142,9 +150,20 @@ input[type=checkbox] {
   color: #999;
 }
 
+.logo {
+  color: #39a43a;
+  display: inline-block;
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 1.3em;
+  margin: 5px;
+  font-family: monospace;
+}
+
 .spectrum-container {
   width: inherit;
-  height: 500px;
+  height: 600px;
   padding: 5px 15px 20px 15px;
   margin: 5px auto;
   border: 1px solid #ddd;
@@ -167,15 +186,6 @@ input[type=checkbox] {
   font-size: 14px;
   line-height: 1.2em;
   top: 4px;
-}
-
-.progress {
-  width: inherit;
-  height: 5px;
-  position: relative;
-  top: 52px;
-  background-color: red;
-  opacity: 0.7;
 }
 
 .legend table {
@@ -238,7 +248,7 @@ input[type=checkbox] {
   font-size: 18px;
   font-family: monospace;
   position: absolute;
-  top: 80px;
+  top: 95px;
   left: 50px;
   width: 400px;
   height: 50px;
@@ -268,39 +278,42 @@ input[type=checkbox] {
   margin-right: 4px;
 }
 
-.stop {
+.active {
+  background-color: green;
+}
+
+.clear_s_data {
   color: black;
-  width: 100px;
+  width: 150px;
   margin-right: 4px;
 }
 
-.clear {
+.clear_time {
   color: black;
-  width: 100px;
+  width: 150px;
   margin-right: 4px;
 }
 
 .setacqtime {
-  color: black;
-  width: 130px;
+  width: 150px;
   margin-right: 4px;
 }
 
 .roi1 {
   color: black;
-  width: 100px;
+  width: 120px;
   margin-right: 4px;
 }
 
 .roi2 {
   color: black;
-  width: 100px;
+  width: 120px;
   margin-right: 4px;
 }
 
 .roi3 {
   color: black;
-  width: 100px;
+  width: 120px;
   margin-right: 4px;
 }
 

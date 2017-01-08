@@ -19,7 +19,7 @@
             <configuration>
               <archive>
                 <manifest>
-                  <mainClass>org.nuras.mcpha.CLIENT</mainClass>
+                  <mainClass>org.nuras.mcpha.Client</mainClass>
                 </manifest>
               </archive>
               <descriptorRefs>

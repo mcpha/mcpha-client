@@ -631,7 +631,7 @@ limitations under the License.
         //
         $("#start").click(function () {
           if ( $("#start" ).text() === "Start") {
-            ws.send("{\"type\":\"req\",\"command\":\"set_acquisition_state\",\"state\":1}");
+            ws.send("{\"type\":\"req\",\"command\":\"set_acquisition_state\",\"state\":1,\"acqtime\":"+localStorage.getItem("rp_acqtime")+"}");
           } else {
             ws.send("{\"type\":\"req\",\"command\":\"set_acquisition_state\",\"state\":0}");
           }
@@ -684,8 +684,9 @@ limitations under the License.
 
         $("#spectrum-placeholder").bind("plotselected", function (event, ranges) {
           if (roi2set !== "") {
-            // $("#selection").text(ranges.xaxis.from.toFixed(1) + " to " + ranges.xaxis.to.toFixed(1));
-            ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+roi2set+",\"from\":"+ranges.xaxis.from.toFixed(0)+",\"to\":"+ranges.xaxis.to.toFixed(0)+"}");
+            ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+
+                    roi2set+",\"from\":"+ranges.xaxis.from.toFixed(0)+",\"to\":"+
+                    ranges.xaxis.to.toFixed(0)+"}");
             plot.clearSelection();
           }
         });
@@ -702,11 +703,6 @@ limitations under the License.
           } else {
             $("#spectrum-placeholder").css("cursor","crosshair", "important");
           }
-//          if (plot.getData().length > 0) {
-            logMessage("xx-"+item);
-            if (item) {
-            }
-//          }
         });
         $("#cursor").text("0");
 

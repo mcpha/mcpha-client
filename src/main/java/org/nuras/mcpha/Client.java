@@ -15,10 +15,6 @@
  */
 package org.nuras.mcpha;
 
-import org.eclipse.jetty.websocket.api.*;
-
-import java.text.*;
-import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -30,8 +26,11 @@ import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.util.Map;
+import java.util.Timer;
 
-import static j2html.TagCreator.*;
+import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Session;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -50,8 +49,10 @@ public class Client
     public int end = 0;
     public long counts = -1;
   }
-
-  private static final double TIME_PER_TICK = 8E-9;
+  
+  public static final long TIMER_FREQ = 125000000L;
+  
+  public static final double TIME_PER_TICK = 1.0 / (double)TIMER_FREQ;
   
   private static final int SHIFT_CODE = 56;
   
@@ -101,6 +102,12 @@ public class Client
   static int nextUserNumber = 1;
   
   static ROI[] rois = new ROI[]{new ROI(), new ROI(), new ROI()};
+
+  static AcquisitionUpdateTask acquisitionUpdateTask = null;
+  
+  static Timer acquisitionMonitorTimer = null;
+  
+  static long aquisitionTime = 0L;
   
   /**
    * 
@@ -115,6 +122,76 @@ public class Client
     init();
   }
 
+  /**
+   * 
+   * @param user 
+   * @param chan 
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaStartAcquisition(Session user, int chan)
+    throws IOException
+  {
+    // if device not connected then return
+    if (deviceSocket == null || !deviceSocket.isConnected())
+    {
+      return;
+    }
+
+    // start acquisition
+    // device inactive
+    mcphaSetAquisitionState(user, chan, 1L);
+    
+    if (acquisitionUpdateTask != null)
+    {
+      acquisitionUpdateTask.cancel();
+    }
+    
+    // inistantiate new task
+    acquisitionUpdateTask = new AcquisitionUpdateTask(user, chan);
+    
+    // cancel any existing timer tasks.
+    if (acquisitionMonitorTimer != null)
+    {
+      acquisitionMonitorTimer.cancel();
+    }
+    
+    // create new timer task
+    acquisitionMonitorTimer = new Timer();
+    acquisitionMonitorTimer.scheduleAtFixedRate(
+      acquisitionUpdateTask, 0, 2000);
+  }
+
+  /**
+   * 
+   * @param user 
+   * @param chan 
+   * @throws java.io.IOException 
+   */
+  public static void mcphaStopAcquisition(Session user, int chan)
+    throws IOException
+  {
+    // if device not connected then return
+    if (deviceSocket == null || !deviceSocket.isConnected())
+    {
+      return;
+    }
+
+    // stop data acquisition
+    // device inactive
+    mcphaSetAquisitionState(user, chan, 0L);
+    
+    if (acquisitionUpdateTask != null)
+    {
+      acquisitionUpdateTask.cancel();
+    }
+    
+    // cancel any existing timer tasks.
+    if (acquisitionMonitorTimer != null)
+    {
+      acquisitionMonitorTimer.cancel();
+    }
+  }
+  
   /**
    * Sends a message from one user to all users, along with a list
    * of current usernames
@@ -134,7 +211,7 @@ public class Client
 //        ));
         session.getRemote().sendString("sender="+sender+", message="+message);
       }
-      catch (Exception e)
+      catch (IOException e)
       {
         e.printStackTrace();
       }
@@ -204,7 +281,10 @@ System.out.println("SEND_MESSAGE:"+json);
 
       
       // initialise device
-//      mcphaResetTimer(0);
+      mcphaSetSampleRate(4L);
+      mcphaSetPhaDelay(0L, 100L);
+      mcphaSetPhaMinThreshold(0L, 300L);
+      mcphaSetPhaMaxThreshold(0L, 16300L);
 //      mcphaResetHistogram(0);
       
       // get histgram data
@@ -267,17 +347,20 @@ System.out.println("SEND_MESSAGE:"+json);
   }
 
   /**
+   * Start/Stop data acquisition of the connected device. When state is 0
+   * then the acquisition is stopped, and when it is 1 then it is active.
    * 
    * @param user 
+   * @param chan 
    * @param state 
    * @throws java.io.IOException 
    */
-  synchronized public static void mcphaSetAquisitionState(Session user, long state)
+  synchronized public static void mcphaSetAquisitionState(Session user, int chan, long state)
     throws IOException
   {
-    if (deviceSocket != null)
+    if (deviceSocket != null && deviceSocket.isConnected())
     {
-      mcphaSetTimerMode(0, state);
+      mcphaSetTimerMode(chan, state);
       
       acquisition_state_active = state == 1;
       JSONObject json = createJSONResponseObject();
@@ -630,7 +713,7 @@ System.out.println("SEND_MESSAGE:"+json);
    * at 125MHz from the start of the acquisition.
    * 
    * @param chan
-   * @return 
+   * @return the timer value in seconds since the start of acquisition
    * @throws java.io.IOException 
    */
   synchronized public static double mcphaGetTimerValue(long chan)

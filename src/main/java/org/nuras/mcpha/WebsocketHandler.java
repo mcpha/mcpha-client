@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.jetty.websocket.api.*;
+import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.*;
 
 import org.json.simple.JSONObject;
@@ -96,8 +96,17 @@ System.out.println("MSG_RECEIVED -- sender="+sender+", message="+message);
       }
       else if (command.equals("set_acquisition_state"))
       {
-        long state = (long)json.get("state");
-        Client.mcphaSetAquisitionState(user, state);
+        switch ((int)(long)json.get("state"))
+        {
+          case 0: // STOP aquisition
+            Client.mcphaStopAcquisition(user, 0);
+            break;
+          case 1: // START acquisition
+            Client.mcphaSetTimerValue(0L, Client.TIMER_FREQ * (long)json.get("state"));
+            Client.mcphaResetTimer(0);
+            Client.mcphaStartAcquisition(user, 0);
+            break;
+        }
       }
       else if (command.equals("get_acquisition_state"))
       {

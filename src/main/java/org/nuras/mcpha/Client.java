@@ -28,6 +28,13 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.Map;
 import java.util.Timer;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
@@ -109,19 +116,75 @@ public class Client
   
   static long aquisitionTime = 0L;
   
+  static boolean debug = false;
+  
   /**
    * 
    * @param args 
+   * @throws org.apache.commons.cli.ParseException 
    */
   public static void main(String[] args)
+    throws ParseException
   {
+    Option helpOption = Option.builder("h")
+                              .longOpt("help")
+                              .required(false)
+                              .desc("shows this message")
+                              .build();
+
+    Option debugOption = Option.builder("d")
+                               .longOpt("debug")
+                               .required(false)
+                               .desc("show debug messages")
+                               .build();
+
+    Option wsurlOption = Option.builder("u")
+                               .longOpt("wsurl")
+                               .numberOfArgs(1)
+                               .required(false)
+                               .type(String.class)
+                               .desc("websocket url")
+                               .build();
+
+    Options options = new Options();
+    options.addOption(helpOption);
+    options.addOption(debugOption);
+    options.addOption(wsurlOption);
+
+    CommandLineParser parser = new DefaultParser();
+    CommandLine cmdLine = parser.parse(options, args);
+
+    if (cmdLine.hasOption("help"))
+    {
+      HelpFormatter formatter = new HelpFormatter();
+      formatter.printHelp("mcpha-client", options);
+    }
+    else
+    {
+      debug = cmdLine.hasOption("debug");
+      String wsurl = cmdLine.hasOption("wsurl") ?
+        ((String)cmdLine.getParsedOptionValue("/wsurl")) : "mcpha";
+
 //    staticFiles.externalLocation("/html5");
-    staticFiles.location("/html5"); //index.html is served at localhost:4567 (default port)
-    staticFiles.expireTime(600);
-    webSocket("/wspha", WebsocketHandler.class);
-    init();
+      staticFiles.location("/html5"); //index.html is served at localhost:4567 (default port)
+      staticFiles.expireTime(600);
+      webSocket(wsurl.startsWith("/")?wsurl:"/"+wsurl, WebsocketHandler.class);
+      init();
+    }
   }
 
+  /**
+   * 
+   * @param message 
+   */
+  public static void logDebugMessage(String message)
+  {
+    if (debug)
+    {
+      System.out.println(message);
+    }
+  }
+  
   /**
    * 
    * @param user 
@@ -244,7 +307,8 @@ public class Client
   public static void sendJSONTextMessage(RemoteEndpoint dest, String json)
     throws IOException
   {
-System.out.println("SEND_MESSAGE:"+json);
+    logDebugMessage("PUSH_MESSAGE:"+json);
+    
     dest.sendString(json);
   }
 
@@ -428,17 +492,14 @@ System.out.println("SEND_MESSAGE:"+json);
       arr.put(xy);
     }
     json.put("data", arr);
-
-    for (int i=1; i<=3; i++)
-    {
-      JSONObject roi = getRoiJSONObject(1);
-      if (roi != null)
-      {
-        json.put("roi"+i, roi);
-      }
-    }
         
     sendJSONObjectMessage(user.getRemote(), json);
+
+    // if ROI's have been defined then we push their data
+    for (int i=1; i<=3; i++)
+    {
+      getRoiData(user, i);
+    }
     
     return t;
   }
@@ -460,13 +521,13 @@ System.out.println("SEND_MESSAGE:"+json);
 
   /**
    * 
+   * @param user
    * @param roi
-   * @return 
+   * @throws java.io.IOException
    */
-  synchronized public static JSONObject getRoiJSONObject(int roi)
+  synchronized public static void getRoiData(Session user, int roi)
+    throws IOException
   {
-    JSONObject json = null;
-    
     if (histogram_data != null && rois[roi-1].counts != -1)
     {
       long counts = 0;
@@ -481,15 +542,19 @@ System.out.println("SEND_MESSAGE:"+json);
         counts += y;
       }
 
-      json = new JSONObject();
+      JSONObject json = new JSONObject();
       json.put("label", "ROI #"+roi);
       json.put("counts", counts);
       json.put("start", rois[roi-1].start);
       json.put("end", rois[roi-1].end);
       json.put("data", data);
+      json.put("roi", roi);
+      json.put("command", "get_roi_data");
+      json.put("message", "");
+      json.put("status", 0);
+      
+      sendJSONObjectMessage(user.getRemote(), json);
     }
-    
-    return json;
   }
 
   /**
@@ -500,7 +565,8 @@ System.out.println("SEND_MESSAGE:"+json);
    * @param end
    * @throws IOException 
    */
-  synchronized public static void mcphaSetRoi(Session user, int roi, int start, int end)
+  synchronized public static void mcphaSetRoi(Session user, int roi, int start,
+    int end)
     throws IOException
   {
     ROI r = null;
@@ -508,7 +574,7 @@ System.out.println("SEND_MESSAGE:"+json);
     if (roi < 1 || roi > 3)
     {
       JSONObject json = createJSONResponseObject();
-      json.put("command", "connect");
+      json.put("command", "set_roi");
       json.put("message", String.format("ROI number [%d] outside range of 1 to 3.", roi));
       json.put("status", 1);
       sendJSONObjectMessage( user.getRemote(), json);
@@ -518,16 +584,16 @@ System.out.println("SEND_MESSAGE:"+json);
     rois[roi-1].end = end;
     rois[roi-1].counts = 0L;
 
-    JSONObject json = getRoiJSONObject(roi);
-    if (json != null)
-    {
-      JSONObject o = createJSONResponseObject();
-      o.put("command", "get_roi_data");
-      o.put("message", "");
-      o.put("roi"+roi, json);
-      o.put("status", 0);
-      sendJSONObjectMessage(user.getRemote(), o);
-    }
+    getRoiData(user, roi);
+//    if (json != null)
+//    {
+//      JSONObject o = createJSONResponseObject();
+//      o.put("command", "get_roi_data");
+//      o.put("message", "");
+//      o.put("roi"+roi, json);
+//      o.put("status", 0);
+//      sendJSONObjectMessage(user.getRemote(), o);
+//    }
   }
 
   /**

@@ -41,18 +41,26 @@ public class WebsocketHandler
     String username = "User" + Client.nextUserNumber++;
     Client.userUsernameMap.put(user, username);
 //    WSPHA.broadcastMessage(sender = "Server", msg = (username + " joined the chat"));
-System.out.println("onConnect - username="+username);
+    Client.logDebugMessage("onConnect function - username="+username);
   }
 
   @OnWebSocketClose
   public void onClose(Session user, int statusCode, String reason)
   {
     String username = Client.userUsernameMap.get(user);
+    
     Client.userUsernameMap.remove(user);
+    
     Client.broadcastMessage(sender = "Server", msg = (username + " left the chat"));
-System.out.println("onColose - username="+username);
+    
+    Client.logDebugMessage("onClose function - username="+username);
   }
 
+  /**
+   * 
+   * @param user
+   * @param message 
+   */
   @OnWebSocketMessage
   public void onMessage(final Session user, String message)
   {
@@ -61,8 +69,9 @@ System.out.println("onColose - username="+username);
     JSONParser parser = new JSONParser();
     try
     {
+      Client.logDebugMessage("MSG_RECEIVED -- sender="+sender+", message="+message);
+      
       Client.sendJSONTextMessage(user.getRemote(), message);
-System.out.println("MSG_RECEIVED -- sender="+sender+", message="+message);
 
       String msg;
       JSONObject json = (JSONObject)parser.parse(message);

@@ -275,6 +275,7 @@ input[type=checkbox] {
   color: black;
   width: 245px;
   margin-right: 10px;
+  margin-left: 20px;
 }
 
 .start {
@@ -283,11 +284,15 @@ input[type=checkbox] {
   margin-right: 4px;
 }
 
-.currentroi {
+.current-roi {
   background-color: #edc240;
 }
 
-.currentyscale {
+.current-yscale {
+  background-color: #aaa;
+}
+
+.current-zoom {
   background-color: #aaa;
 }
 

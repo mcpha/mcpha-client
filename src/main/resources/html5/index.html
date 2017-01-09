@@ -30,6 +30,28 @@ limitations under the License.
     <script language="javascript" type="text/javascript" src="js/jquery.flot.resize.js"></script>
     <script type="text/javascript">
 
+      // Returns a function, that, as long as it continues to be invoked, will not
+      // be triggered. The function will be called after it stops being called for
+      // N milliseconds. If `immediate` is passed, trigger the function on the
+      // leading edge, instead of the trailing.
+      function debounce(func, wait, immediate) {
+        var timeout;
+        return function() {
+          var context = this, args = arguments;
+          var later = function() {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+          };
+          var callNow = immediate && !timeout;
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+          if (callNow) func.apply(context, args);
+        };
+      };
+      
+      //
+      //  <a download="My-FileName.txt" href="data:application/octet-stream,HELLO-WORLDDDDDDDD">Click here</a> 
+      //
       $(function () {
         
         var yscale_ln_range = [100,500,2000,10000,50000,200000,1000000];
@@ -60,6 +82,9 @@ limitations under the License.
             }
           },
           yaxis: {
+            labelWidth: 140,
+            reserveSpace: true,
+            position: "right",
             max: 100,
             ticks: null,//[0.1,1,10,100,1000],
             transform:  null//function(v) {
@@ -315,33 +340,18 @@ limitations under the License.
         function adjust_vertical_scale_and_plot(params, adjustment) {
           if (yscale === "ln") {
             if (adjustment > 0) {
-              for (var i in yscale_ln_range) {
-                alert(array[i]);
-              }
-              if (params.yaxis.max === 100) {
-                params.yaxis.max = 100;
-              } else if (params.yaxis.max < 500) {
-                params.yaxis.max = 500;
-              } else if (params.yaxis.max < 10000) {
-                params.yaxis.max = 10000;
-              } else if (params.yaxis.max < 50000) {
-                params.yaxis.max = 50000;
-              } else if (params.yaxis.max < 200000) {
-                params.yaxis.max = 200000;
-              } else if (params.yaxis.max < 1000000) {
-                params.yaxis.max = 1000000;
+              for ( var i = 0, l = yscale_ln_range.length - 1; i < l; i++ ) {
+                if (params.yaxis.max <= yscale_ln_range[i]) {
+                  params.yaxis.max = yscale_ln_range[i+1];
+                  break;
+                }
               }
             } else if (adjustment < 0) {
-              if (params.yaxis.max === 1000000) {
-                params.yaxis.max = 200000;
-              } else if (params.yaxis.max === 200000) {
-                params.yaxis.max = 50000;
-              } else if (params.yaxis.max === 50000) {
-                params.yaxis.max = 10000;
-              } else if (params.yaxis.max === 10000) {
-                params.yaxis.max = 5000;
-              } else if (params.yaxis.max === 5000) {
-                params.yaxis.max = 1000;
+              for ( var i = yscale_ln_range.length-1; i > 0; i-- ) {
+                if (params.yaxis.max >= yscale_ln_range[i]) {
+                  params.yaxis.max = yscale_ln_range[i-1];
+                  break;
+                }
               }
             }
           } else if (yscale === "lg") {
@@ -363,6 +373,13 @@ limitations under the License.
           plot = $.plot("#spectrum-placeholder", data, params);
         }
 
+        function resize_flot_div(w, h) {
+          // resize spectrum plot
+          $(".spectrum-container").height((h-160)+"px");
+          $(".spectrum-placeholder").height((h-240)+"px");
+          // resize message-log
+          $("#message-log").height((h-123)+"px");
+        }
         
         function logMessage(message) {
           $("<p>"+message+"</p>").appendTo('#message-log');
@@ -545,6 +562,10 @@ limitations under the License.
           event.preventDefault();
         });
 
+        var resize_handler = debounce(function() {
+          resize_flot_div($(window).width(), $(window).height());
+        }, 400);
+
         $("button.deviceip").click(function () {
           if ($( "#deviceip" ).text().startsWith("Connect")) {
             // read the red pitaya device address from storage
@@ -710,6 +731,9 @@ limitations under the License.
           $.notify("Select ROI #3 region using mouse", "info");
         });
 
+        //
+        // PLOT SELECTION HANDLER
+        //
         $("#spectrum-placeholder").bind("plotselected", function (event, ranges) {
           if (roi2set !== "") {
             ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+
@@ -717,6 +741,15 @@ limitations under the License.
                     ranges.xaxis.to.toFixed(0)+"}");
             $("#roi"+roi2set).removeClass("currentroi");
             plot.clearSelection();
+          }
+        });
+
+        //
+        // SETUP PLOT CLICK HANDLER
+        //
+        $("#spectrum-placeholder").bind("plotclick", function (event, pos, item) {
+          if (plot.getData().length > 0) {
+            console.log("click curcor pos: x="+pos.x.toFixed(0)+", y="+pos.y.toFixed(0)+", roi2set="+roi2set);
           }
         });
 
@@ -733,6 +766,7 @@ limitations under the License.
             $("#spectrum-placeholder").css("cursor","crosshair", "important");
           }
         });
+        
         $("#cursor").text("0");
 
         // Catch keypressess
@@ -761,6 +795,11 @@ limitations under the License.
 //          minWidth: 450,
 //          minHeight: 250
 //        });
+
+        window.addEventListener('resize', resize_handler);
+        
+        // resize flot div
+        resize_flot_div($(window).width(), $(window).height());
       });
 
     </script>

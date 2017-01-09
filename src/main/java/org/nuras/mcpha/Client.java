@@ -147,7 +147,7 @@ public class Client
     }
     
     // inistantiate new task
-    acquisitionUpdateTask = new AcquisitionUpdateTask(user, chan);
+    acquisitionUpdateTask = new AcquisitionUpdateTask(user, chan, 1000);
     
     // cancel any existing timer tasks.
     if (acquisitionMonitorTimer != null)
@@ -157,8 +157,7 @@ public class Client
     
     // create new timer task
     acquisitionMonitorTimer = new Timer();
-    acquisitionMonitorTimer.scheduleAtFixedRate(
-      acquisitionUpdateTask, 0, 2000);
+    acquisitionMonitorTimer.schedule(acquisitionUpdateTask, 0);
   }
 
   /**
@@ -176,13 +175,15 @@ public class Client
       return;
     }
 
-    // stop data acquisition
-    // device inactive
-    mcphaSetAquisitionState(user, chan, 0L);
-    
     if (acquisitionUpdateTask != null)
     {
-      acquisitionUpdateTask.cancel();
+      acquisitionUpdateTask.exitLoop();
+    }
+    else
+    {
+      // stop data acquisition
+      // device inactive
+      mcphaSetAquisitionState(user, chan, 0L);
     }
     
     // cancel any existing timer tasks.
@@ -190,6 +191,10 @@ public class Client
     {
       acquisitionMonitorTimer.cancel();
     }
+    
+    // help out garbage collector
+    acquisitionUpdateTask = null;
+    acquisitionMonitorTimer = null;
   }
   
   /**
@@ -395,9 +400,10 @@ System.out.println("SEND_MESSAGE:"+json);
    * 
    * @param user
    * @param chan
+   * @return timer value
    * @throws IOException 
    */
-  synchronized public static void getHistogramData(Session user, long chan)
+  synchronized public static double getHistogramData(Session user, long chan)
     throws IOException
   {
     // get elapsed time
@@ -433,6 +439,23 @@ System.out.println("SEND_MESSAGE:"+json);
     }
         
     sendJSONObjectMessage(user.getRemote(), json);
+    
+    return t;
+  }
+
+  /**
+   * 
+   * @param user
+   * @param chan
+   * @throws IOException 
+   */
+  synchronized public static void clearSpectrumData(Session user, long chan)
+    throws IOException
+  {
+    mcphaResetHistogram(chan);
+
+    // get histogram data
+    getHistogramData(user, chan);
   }
 
   /**
@@ -467,39 +490,6 @@ System.out.println("SEND_MESSAGE:"+json);
     }
     
     return json;
-  }
-  
-  /**
-   * 
-   * @param user
-   * @param value
-   */
-  synchronized public static void setAcquisitionTime(Session user, long value)
-  {
-    try
-    {
-      JSONObject json = createJSONResponseObject();
-      json.put("command", "connect");
-      json.put("message", "Successful");
-      json.put("status", 0);
-      sendJSONObjectMessage(user.getRemote(), json);
-    }
-    catch (IOException ex)
-    {
-      deviceSocket = null;
-      try
-      {
-        JSONObject json = createJSONResponseObject();
-        json.put("command", "connect");
-        json.put("message", ex.toString());
-        json.put("status", 1);
-        sendJSONObjectMessage( user.getRemote(), json);
-      }
-      catch (IOException ex1)
-      {
-        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex1);
-      }
-    }
   }
 
   /**

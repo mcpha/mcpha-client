@@ -186,6 +186,7 @@ input[type=checkbox] {
   font-size: 14px;
   line-height: 1.2em;
   top: 4px;
+  left: 15px;
 }
 
 .legend table {
@@ -249,7 +250,7 @@ input[type=checkbox] {
   font-family: monospace;
   position: absolute;
   top: 95px;
-  left: 50px;
+  left: 65px;
   width: 400px;
   height: 50px;
   padding: 0px;
@@ -276,6 +277,14 @@ input[type=checkbox] {
   color: black;
   width: 100px;
   margin-right: 4px;
+}
+
+.currentroi {
+  background-color: #edc240;
+}
+
+.currentyscale {
+  background-color: #aaa;
 }
 
 .active {

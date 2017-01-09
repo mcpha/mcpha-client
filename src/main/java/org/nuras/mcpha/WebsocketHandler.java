@@ -77,11 +77,6 @@ System.out.println("MSG_RECEIVED -- sender="+sender+", message="+message);
       {
         Client.disconnectFromDevice(user);
       }
-      else if (command.equals("set_acquisition_time"))
-      {
-        long value = (long)json.get("value");
-        Client.setAcquisitionTime(user, value);
-      }
       else if (command.equals("set_sample_rate"))
       {
         long value = (long)json.get("value");
@@ -102,7 +97,7 @@ System.out.println("MSG_RECEIVED -- sender="+sender+", message="+message);
             Client.mcphaStopAcquisition(user, 0);
             break;
           case 1: // START acquisition
-            Client.mcphaSetTimerValue(0L, Client.TIMER_FREQ * (long)json.get("state"));
+            Client.mcphaSetTimerValue(0L, Client.TIMER_FREQ * (long)json.get("acqtime"));
             Client.mcphaResetTimer(0);
             Client.mcphaStartAcquisition(user, 0);
             break;
@@ -111,6 +106,10 @@ System.out.println("MSG_RECEIVED -- sender="+sender+", message="+message);
       else if (command.equals("get_acquisition_state"))
       {
         Client.mcphaGetAquisitionState(user);
+      }
+      else if (command.equals("clear_spectrum_data"))
+      {
+        Client.clearSpectrumData(user, 0L);
       }
     }
     catch (ParseException | IOException ex)

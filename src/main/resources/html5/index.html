@@ -32,31 +32,73 @@ limitations under the License.
 
       $(function () {
         
+        var yscale_ln_range = [100,500,2000,10000,50000,200000,1000000];
+        
+        var yscale_lg_range = [0.1,1,10,100,1000,10000];
+        
         var hdata, hlabel, r1data, r1label, r2data, r2label, r3data, r3label;
         
-        var plot;
+        var roi2set = "";
+        
+        var plot, yscale;
         
         var ws;
         
-        // Check that page is loaded via http protocol
+        var options = {
+          lines: {
+            show: true,
+            steps: true
+          },
+          points: {
+            show: false
+          },
+          xaxis: {
+            tickDecimals: 0,
+            tickSize: 1,
+            transform: function(x) {
+              return x;
+            }
+          },
+          yaxis: {
+            max: 100,
+            ticks: null,//[0.1,1,10,100,1000],
+            transform:  null//function(v) {
+            //  return Math.log(v+0.0001); /*move away from zero*/
+            //},
+            //tickDecimals: 3,
+            //tickFormatter: function (v, axis) {
+            //  return "10" + (Math.round( Math.log(v)/Math.LN10)).toString().sup();
+            //}
+          },
+          grid: {
+            backgroundColor: "#999",
+            hoverable: true,
+            clickable: true,
+            autoHighlight: false
+          },
+          crosshair: {
+            mode: "x"
+          },
+          zoom: {
+            interactive: true
+          },
+          pan: {
+            interactive: true
+          },
+          selection: {
+            mode: "x"
+          }
+        };
+        
+        //
+        // FIRST THINGS FIRST. IF PAGE IS NOT LOADED
+        // VIA HTTP PROTOCOL THEN ITS A NO GO
+        //
         if (window.location.protocol === "file:")
         {
           document.write("ERROR: This app must be loaded via a http web server.");
           return;
         }
-
-//  var data,data1,options,chart;
-//  data1 = [ [1,5],[2,5],[3,6],[4,9],[5,7],[6,6],[7,2],[8,1],[9,3] ];
-//  var data2 = [], data3=[];
-//  for(var i = 1; i < 10; i++) { data2.push([i,i * 2])}
-//  for(var i = 1; i < 10; i++) { data3.push([i,10 * Math.random()])}
-//  data = [{ data:data1, label:"fixed", lines:{show:true}}
-//        ,{ data:data2, label:"linear", lines:{show:true}, points:{show:true}}
-//        ,{ data:data3, label:"random", bars:{ show:true, barWidth:0.5}}];
-//  options = {legend:{position:"nw"}};
-//  $(document).ready(function(){
-//  	chart = $.plot($("#placeholder"),data,options);
-//  });
 
         function setupWebsocket() {
           if ("WebSocket" in window) {
@@ -78,41 +120,18 @@ limitations under the License.
                     $.notify(msg.message, "success");
                     updateConnectionStatus("rpce");
                     $( "#deviceip" ).text("Disconnect from Device");
-                    // set initial roi #1 value
-                    if (localStorage.getItem('rp_roi1_start') === null) {
-                      $( "#roi1_counts" ).text(0);
-                    } else {
+                    // get initial roi #1 value
+                    if (localStorage.getItem('rp_roi1_start') !== null) {
                       ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":1,\"from\":"+localStorage.getItem('rp_roi1_start')+",\"to\":"+localStorage.getItem('rp_roi1_end')+"}");
                     }
-                    // install click handler
-                    $("#roi1").click(function () {
-                      roi2set = "1";
-                      $.notify("Select ROI #1 region using mouse", "info");
-                    });
-
-                    // set initial roi #2 value
-                    if (localStorage.getItem('rp_roi2_start') === null) {
-                      $( "#roi2_counts" ).text(0);
-                    } else {
+                    // get initial roi #2 value
+                    if (localStorage.getItem('rp_roi2_start') !== null) {
                       ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":2,\"from\":"+localStorage.getItem('rp_roi2_start')+",\"to\":"+localStorage.getItem('rp_roi2_end')+"}");
                     }
-                    // install click handler
-                    $("#roi2").click(function () {
-                      roi2set = "2";
-                      $.notify("Select ROI #2 region using mouse", "info");
-                    });
-
-                    // set initial roi #3 value
-                    if (localStorage.getItem('rp_roi3_start') === null) {
-                      $( "#roi3_counts" ).text(0);
-                    } else {
+                    // fet initial roi #3 value
+                    if (localStorage.getItem('rp_roi3_start') !== null) {
                       ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":3,\"from\":"+localStorage.getItem('rp_roi3_start')+",\"to\":"+localStorage.getItem('rp_roi3_end')+"}");
                     }
-                    // install click handler
-                    $("#roi3").click(function () {
-                      roi2set = "3";
-                      $.notify("Select ROI #3 region using mouse", "info");
-                    });
                   } else {
                     $.notify(msg.message, "error");
                     updateConnectionStatus("rpcd");
@@ -129,8 +148,8 @@ limitations under the License.
                   var axis = plot.getAxes();
                   options.xaxis.min = 0;
                   options.xaxis.max = 16300;
-                  options.yaxis.min = 0;
-                  options.yaxis.max = 4000;
+                  //options.yaxis.min = 0;
+                  //options.yaxis.max = 4000;
                   options.xaxis.tickSize = 1000;
                   plotData(msg.label, msg.data, null, null, null, null, null, null, options);
                 } else {
@@ -225,6 +244,7 @@ limitations under the License.
         
         function plotData(histogram_label, histogram_data, roi1_label, roi1_data, roi2_label, roi2_data, roi3_label, roi3_data, params) {
           var data = [];
+          
           if (histogram_data !== null) {
             hdata = histogram_data;
             hlabel = histogram_label;
@@ -238,7 +258,7 @@ limitations under the License.
             r1data = roi1_data;
             data.push({label:roi1_label, data:roi1_data, color:"#a22"});
           } else {
-            data.push({label:r1label, data:r1data});
+            data.push({label:r1label, data:r1data, color:"#a22"});
           }
           
           if (roi2_data !== null) {
@@ -246,7 +266,7 @@ limitations under the License.
             r2data = roi2_data;
             data.push({label:roi2_label, data:roi2_data, color:"#a22"});
           } else {
-            data.push({label:r2label, data:r2data});
+            data.push({label:r2label, data:r2data, color:"#a22"});
           }
           
           if (roi3_data !== null) {
@@ -254,15 +274,87 @@ limitations under the License.
             r3data = roi3_data;
             data.push({label:roi3_label, data:roi3_data, color:"#a22"});
           } else {
-            data.push({label:r3label, data:r3data});
+            data.push({label:r3label, data:r3data, color:"#a22"});
           }
           
           plot = $.plot("#spectrum-placeholder", data, params);
         }
 
+        function set_vertical_scale(scale) {
+          yscale = scale;
+          $(".yscale-ln-button").removeClass("currentyscale");
+          $(".yscale-lg-button").removeClass("currentyscale");
+          $(".yscale-sq-button").removeClass("currentyscale");
+          if (scale === "ln") {
+            $(".yscale-ln-button").addClass("currentyscale");
+            options.yaxis.ticks = null;
+            options.yaxis.transform = null;
+            options.yaxis.tickDecimals = null;
+            options.yaxis.tickFormatter = null;
+          } else if (scale === "lg") {
+            $(".yscale-lg-button").addClass("currentyscale");
+            options.yaxis.ticks = [0.1,1,10,100,1000];
+            options.yaxis.transform = function(v) {
+              return Math.log10(v+0.0001); /*move away from zero*/
+            };
+            options.yaxis.tickDecimals = 3;
+            options.yaxis.tickFormatter = function (v, axis) {
+              return "10" + (Math.round( Math.log10(v)/Math.LN10)).toString().sup();
+            };
+          } else if (scale === "sq") {
+            $(".yscale-sq-button").addClass("currentyscale");
+            options.yaxis.ticks = null;
+            options.yaxis.transform = function(v) {
+              return Math.sqrt(v+0.0001); /*move away from zero*/
+            };
+            options.yaxis.tickDecimals = null;
+            options.yaxis.tickFormatter = null;
+          }
+        }
         
+        function adjust_vertical_scale_and_plot(params, adjustment) {
+          if (yscale === "ln") {
+            if (adjustment > 0) {
+              for (var i in yscale_ln_range) {
+                alert(array[i]);
+              }
+              if (params.yaxis.max === 100) {
+                params.yaxis.max = 100;
+              } else if (params.yaxis.max < 500) {
+                params.yaxis.max = 500;
+              } else if (params.yaxis.max < 10000) {
+                params.yaxis.max = 10000;
+              } else if (params.yaxis.max < 50000) {
+                params.yaxis.max = 50000;
+              } else if (params.yaxis.max < 200000) {
+                params.yaxis.max = 200000;
+              } else if (params.yaxis.max < 1000000) {
+                params.yaxis.max = 1000000;
+              }
+            } else if (adjustment < 0) {
+              if (params.yaxis.max === 1000000) {
+                params.yaxis.max = 200000;
+              } else if (params.yaxis.max === 200000) {
+                params.yaxis.max = 50000;
+              } else if (params.yaxis.max === 50000) {
+                params.yaxis.max = 10000;
+              } else if (params.yaxis.max === 10000) {
+                params.yaxis.max = 5000;
+              } else if (params.yaxis.max === 5000) {
+                params.yaxis.max = 1000;
+              }
+            }
+          } else if (yscale === "lg") {
+            
+          } else if (yscale === "sq") {
+            
+          }
+          replot(params);
+        }
+
         function replot(params) {
           var data = [];
+          
           data.push({label:hlabel, data:hdata});
           data.push({label:r1label, data:r1data, color:"#a22"});
           data.push({label:r2label, data:r2data, color:"#a22"});
@@ -390,7 +482,7 @@ limitations under the License.
 
         setupWebsocket();
 
-        // initialise device ip address
+        // set a default device ip address
         if (localStorage.getItem('rp_ipaddr') === null) {
           localStorage.setItem('rp_ipaddr', "0.0.0.0");
           localStorage.setItem('rp_port', "0");
@@ -436,8 +528,6 @@ limitations under the License.
             "OK": function() {
               // Put the object into storage
               localStorage.setItem('rp_acqtime', $( "#acqtime" ).val());
-              // connect to red pitaya device
-              ws.send("{\"type\":\"req\",\"command\":\"set_acquisition_time\",\"value\":"+$("#acqtime").val()+"}");
               // close dialog
               dialog_acqtime.dialog( "close" );
             },
@@ -466,92 +556,27 @@ limitations under the License.
           }
         });
         
-        var options = {
-          lines: {
-            show: true,
-            steps: true
-          },
-          points: {
-            show: false
-          },
-          xaxis: {
-            tickDecimals: 0,
-            tickSize: 1,
-            transform: function(x) {
-              return x;
-            }
-          },
-          yaxis: {
-            ticks: null,//[0.1,1,10,100,1000],
-            transform:  null//function(v) {
-            //  return Math.log(v+0.0001); /*move away from zero*/
-            //},
-            //tickDecimals: 3,
-            //tickFormatter: function (v, axis) {
-            //  return "10" + (Math.round( Math.log(v)/Math.LN10)).toString().sup();
-            //}
-          },
-          grid: {
-            backgroundColor: "#999",
-            hoverable: true,
-            clickable: true,
-            autoHighlight: false
-          },
-          crosshair: {
-            mode: "x"
-          },
-          zoom: {
-            interactive: true
-          },
-          pan: {
-            interactive: true
-          },
-          selection: {
-            mode: "x"
-          }
-        };
-
-        var yscale = "ln";
+        set_vertical_scale("ln");
         
-        var roi2set = "";
-
         plot = $.plot("#spectrum-placeholder", [], options);
 
         var alreadyFetched = {};
 
         // Set Y display to linear
         $("button.yscale-ln-button").click(function () {
-          yscale = "ln";
-          options.yaxis.ticks = null;
-          options.yaxis.transform = null;
-          options.yaxis.tickDecimals = null;
-          options.yaxis.tickFormatter = null;
+          set_vertical_scale("ln");
           replot(options);
         });
 
         // Set Y display to square root
         $("button.yscale-sq-button").click(function () {
-          yscale = "sq";
-          options.yaxis.ticks = null;
-          options.yaxis.transform = function(v) {
-            return Math.sqrt(v+0.0001); /*move away from zero*/
-          };
-          options.yaxis.tickDecimals = null;
-          options.yaxis.tickFormatter = null;
+          set_vertical_scale("sq");
           replot(options);
         });
 
         // Set Y display to log10
         $("button.yscale-lg-button").click(function () {
-          yscale = "lg";
-          options.yaxis.ticks = [0.1,1,10,100,1000];
-          options.yaxis.transform = function(v) {
-            return Math.log10(v+0.0001); /*move away from zero*/
-          };
-          options.yaxis.tickDecimals = 3;
-          options.yaxis.tickFormatter = function (v, axis) {
-            return "10" + (Math.round( Math.log10(v)/Math.LN10)).toString().sup();
-          };
+          set_vertical_scale("lg");
           replot(options);
         });
 
@@ -641,7 +666,7 @@ limitations under the License.
         // CLEAR spectrum data button click handler
         //
         $("#clear_s_data").click(function () {
-          alert("CLEAR SPECTUM DATA");
+          ws.send("{\"type\":\"req\",\"command\":\"clear_spectrum_data\"}");
         });
 
         //
@@ -663,6 +688,7 @@ limitations under the License.
         //
         $("#roi1").click(function () {
           roi2set = "1";
+          $("#roi1").addClass("currentroi");
           $.notify("Select ROI #1 region using mouse", "info");
         });
 
@@ -671,6 +697,7 @@ limitations under the License.
         //
         $("#roi2").click(function () {
           roi2set = "2";
+          $("#roi2").addClass("currentroi");
           $.notify("Select ROI #2 region using mouse", "info");
         });
 
@@ -679,6 +706,7 @@ limitations under the License.
         //
         $("#roi3").click(function () {
           roi2set = "3";
+          $("#roi3").addClass("currentroi");
           $.notify("Select ROI #3 region using mouse", "info");
         });
 
@@ -687,6 +715,7 @@ limitations under the License.
             ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+
                     roi2set+",\"from\":"+ranges.xaxis.from.toFixed(0)+",\"to\":"+
                     ranges.xaxis.to.toFixed(0)+"}");
+            $("#roi"+roi2set).removeClass("currentroi");
             plot.clearSelection();
           }
         });
@@ -712,11 +741,11 @@ limitations under the License.
           if (e.which === 37) {
             alert('You pressed left!');
           } else if (e.which === 38) {
-            alert('You pressed up!');
+            adjust_vertical_scale_and_plot(options, +1);
           } else if (e.which === 39) {
             alert('You pressed right!');
           } else if (e.which === 40) {
-            alert('You pressed down!');
+            adjust_vertical_scale_and_plot(options, -1);
           } else if (e.which === 13) {
             alert('You pressed enter!');
           }

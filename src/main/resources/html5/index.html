@@ -25,11 +25,10 @@ limitations under the License.
     <script language="javascript" type="text/javascript" src="js/jquery-ui.js"></script>
     <script language="javascript" type="text/javascript" src="js/notify.js"></script>
     <script language="javascript" type="text/javascript" src="js/jquery.flot.js"></script>
-    <script language="javascript" type="text/javascript" src="js/jquery.flot.crosshair.js"></script>
+    <!-- <script language="javascript" type="text/javascript" src="js/jquery.flot.crosshair.js"></script> -->
     <script language="javascript" type="text/javascript" src="js/jquery.flot.selection.js"></script>
     <script language="javascript" type="text/javascript" src="js/jquery.flot.resize.js"></script>
     <script type="text/javascript">
-
       // Returns a function, that, as long as it continues to be invoked, will not
       // be triggered. The function will be called after it stops being called for
       // N milliseconds. If `immediate` is passed, trigger the function on the
@@ -171,21 +170,6 @@ limitations under the License.
                 } else {
                   $.notify(msg.message, "error");                
                 }
-              } else if (msg.command === "get_roi_data") {
-                if (msg.status === 0) {
-                  var roi = msg.roi;
-                  $("#roi"+roi+"_counts").text(msg.counts);
-                  $("#roi"+roi+"_counts").prop("title", "From "+msg.start+" to "+msg.end);
-                  if (roi === 1) {
-                    plotData(null, null, msg.label, msg.data, null, null, null, null, options);
-                  } else if (roi === 2) {
-                    plotData(null, null, null, null, msg.label, msg.data, null, null, options);
-                  } else if (roi === 3) {
-                    plotData(null, null, null, null, null, null, msg.label, msg.data, options);
-                  }
-                } else {
-                  $.notify(msg.message, "error");                
-                }
               } else if (msg.command === "set_acquisition_time") {
                 logMessage(">>"+evt.data);
                 if (msg.type === "req") {
@@ -208,29 +192,43 @@ limitations under the License.
                   } else {
                     $( "#start" ).text("Start");
                     $( "#start" ).removeClass("active");
+                    $.notify("Acquisition stopped", "success");                
                   }
+                }
+              } else if (msg.command === "get_roi_data") {
+                if (msg.status === 0) {
+                  var roi = msg.roi;
+                  $("#roi"+roi+"_counts").text(msg.counts);
+                  $("#roi"+roi+"_counts").prop("title", "From "+msg.start+" to "+msg.end);
+                  if (roi === 1) {
+                    plotData(null, null, msg.label, msg.data, null, null, null, null, options);
+                  } else if (roi === 2) {
+                    plotData(null, null, null, null, msg.label, msg.data, null, null, options);
+                  } else if (roi === 3) {
+                    plotData(null, null, null, null, null, null, msg.label, msg.data, options);
+                  }
+                } else {
+                  $.notify(msg.message, "error");                
                 }
               } else if (msg.command === "set_roi") {
                 logMessage(">>"+evt.data);
                 roi2set = "";
-                if (msg.type !== "req") {
-                  if (msg.status === 0) {
-                    if (msg.roi === 1) {
-                      localStorage.setItem('rp_roi1_start', msg.start);
-                      localStorage.setItem('rp_roi1_end', msg.end);
-                      $( "#roi1_counts" ).text(msg.counts);
-                      $( "#roi1_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
-                    } else if (msg.roi === 2) {
-                      localStorage.setItem('rp_roi2_start', msg.start);
-                      localStorage.setItem('rp_roi2_end', msg.end);
-                      $( "#roi2_counts" ).text(msg.counts);
-                      $( "#roi2_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
-                    } else if (msg.roi === 3) {
-                      localStorage.setItem('rp_roi3_start', msg.start);
-                      localStorage.setItem('rp_roi3_end', msg.end);
-                      $( "#roi3_counts" ).text(msg.counts);
-                      $( "#roi3_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
-                    }
+                if (msg.type === "req") {
+                  if (msg.roi === 1) {
+                    localStorage.setItem('rp_roi1_start', msg.start);
+                    localStorage.setItem('rp_roi1_end', msg.end);
+                    $( "#roi1_counts" ).text("0");
+                    $( "#roi1_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
+                  } else if (msg.roi === 2) {
+                    localStorage.setItem('rp_roi2_start', msg.start);
+                    localStorage.setItem('rp_roi2_end', msg.end);
+                    $( "#roi2_counts" ).text("0");
+                    $( "#roi2_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
+                  } else if (msg.roi === 3) {
+                    localStorage.setItem('rp_roi3_start', msg.start);
+                    localStorage.setItem('rp_roi3_end', msg.end);
+                    $( "#roi3_counts" ).text("0");
+                    $( "#roi3_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
                   }
                 }
               }
@@ -400,7 +398,7 @@ limitations under the License.
             // now set zoomin mode
             if (zoom_mode === "") {
               $("button.zoom-in-button").addClass("current-zoom");
-              zoom_mode = param;
+              zoom_mode = mode;
             }
             $.notify("Select spectrum region using mouse.", "info");
           } else if (mode === "roi2set") {
@@ -424,6 +422,36 @@ limitations under the License.
           }
         }
 
+        function zoom_around_cursor(xpos) {
+          if (plot.getData().length > 0) {
+            // zoom in by a factor of 2
+            var axes = plot.getAxes();
+            var dmin = parseInt(axes.xaxis.datamin);
+            var dmax = parseInt(axes.xaxis.datamax);
+            var xmin = parseInt(options.xaxis.min);
+            var xmax = parseInt(options.xaxis.max);
+            var xrng = (xmax - xmin) / 2;
+            if (xrng > 100) {
+              xrng /= 2;
+              xmin = parseInt(xpos) - xrng;
+              xmax = parseInt(xpos) + xrng;
+              if (xmin < dmin) {
+                xmin = dmin;
+                xmax = xmin + (xrng * 2);
+              } else if (xmax > dmax) {
+                xmax = dmax;
+                xmin = xmax - (xrng * 2);
+              }
+              options.xaxis.min = xmin;
+              options.xaxis.max = xmax;
+              options.xaxis.tickSize = get_zoom_ticks(xmin, xmax);
+              if (!acquiring) {
+                replot(options);
+              }
+            }
+          }
+        }
+        
         function replot(params) {
           var data = [];
           
@@ -673,6 +701,8 @@ limitations under the License.
           options.xaxis.max = Math.ceil(axis.xaxis.datamax);
           options.yaxis.min = 0;
           options.yaxis.max = Math.ceil(axis.yaxis.datamax);
+          options.xaxis.tickSize = get_zoom_ticks(
+                  options.xaxis.min, options.xaxis.max);
           replot(options);
         });
 
@@ -761,7 +791,6 @@ limitations under the License.
         //
         $("#clear_s_data").click(function () {
           ws.send("{\"type\":\"req\",\"command\":\"clear_spectrum_data\"}");
-          $.notify("****CLEAR SPECTRUM DATA**", "info");
         });
 
         //
@@ -809,27 +838,27 @@ limitations under the License.
                     ranges.xaxis.to.toFixed(0)+"}");
             $("#roi"+roi2set).removeClass("current-roi");
             plot.clearSelection();
-          } else if (zoom_mode !== "") {
-            options.xaxis.min = parseInt(ranges.xaxis.from.toFixed(0));
-            options.xaxis.max = parseInt(ranges.xaxis.to.toFixed(0));
-            options.xaxis.ticks = get_zoom_ticks(options.xaxis.min, options.xaxis.max);
-            //plot.clearSelection();
-            replot(options);
           }
         });
 
         //
-        // SETUP PLOT CLICK HANDLER
+        // Setup Zoomin click handler
         //
         $("#spectrum-placeholder").bind("plotclick", function (event, pos, item) {
           if (plot.getData().length > 0) {
-            console.log("click curcor pos: x="+pos.x.toFixed(0)+", y="+pos.y.toFixed(0)+", roi2set="+roi2set);
+            if (zoom_mode === "zoomin") {
+              zoom_around_cursor(pos.x.toFixed(0));
+            }
           }
         });
 
         $("#spectrum-placeholder").bind("plothover", function (event, pos, item) {
           if (plot.getData().length > 0) {
-            $("#spectrum-placeholder").css("cursor","pointer","important");
+            if (zoom_mode === "zoomin") {
+              $("#spectrum-placeholder").css("cursor","url(css/images/zoom-in.ico) 9 9, auto", "important");
+            } else {
+              $("#spectrum-placeholder").css("cursor","crosshair", "important");
+            }
             //$("#cursor").text(item.datapoint[0].toFixed(0));
             var x = pos.x.toFixed(0);
             var y = plot.getData()[0].data[x][1];
@@ -837,7 +866,7 @@ limitations under the License.
             $("#counts").text(y);
             //$("#counts").text(item.datapoint[1].toFixed(2));
           } else {
-            $("#spectrum-placeholder").css("cursor","crosshair", "important");
+            $("#spectrum-placeholder").css("cursor","pointer","important");
           }
         });
         

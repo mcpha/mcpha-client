@@ -838,7 +838,8 @@ public class Client
   private static void sendCommand(long code, long chan, long data)
     throws IOException
   {
-System.out.println(">>>>>>>>>>>>> code="+code+", chan="+chan+", data="+data);
+    logDebugMessage("sendCommand - code="+code+", chan="+chan+", data="+data);
+    
     DataOutputStream out = new DataOutputStream(deviceSocket.getOutputStream());
     long b = (long)(code << SHIFT_CODE) | (validateChannel(chan)  << SHIFT_CHAN) | data;
     out.writeLong(Long.reverseBytes(b));

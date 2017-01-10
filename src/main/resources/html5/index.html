@@ -215,20 +215,20 @@ limitations under the License.
                 roi2set = "";
                 if (msg.type === "req") {
                   if (msg.roi === 1) {
-                    localStorage.setItem('rp_roi1_start', msg.start);
-                    localStorage.setItem('rp_roi1_end', msg.end);
+                    localStorage.setItem('rp_roi1_start', msg.from);
+                    localStorage.setItem('rp_roi1_end', msg.to);
                     $( "#roi1_counts" ).text("0");
-                    $( "#roi1_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
+                    $( "#roi1_counts" ).prop("title", "From "+msg.from+" to "+msg.to);
                   } else if (msg.roi === 2) {
-                    localStorage.setItem('rp_roi2_start', msg.start);
-                    localStorage.setItem('rp_roi2_end', msg.end);
+                    localStorage.setItem('rp_roi2_start', msg.from);
+                    localStorage.setItem('rp_roi2_end', msg.to);
                     $( "#roi2_counts" ).text("0");
-                    $( "#roi2_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
+                    $( "#roi2_counts" ).prop("title", "From "+msg.from+" to "+msg.to);
                   } else if (msg.roi === 3) {
-                    localStorage.setItem('rp_roi3_start', msg.start);
-                    localStorage.setItem('rp_roi3_end', msg.end);
+                    localStorage.setItem('rp_roi3_start', msg.from);
+                    localStorage.setItem('rp_roi3_end', msg.to);
                     $( "#roi3_counts" ).text("0");
-                    $( "#roi3_counts" ).prop("title", "From "+msg.start+" to "+msg.end);
+                    $( "#roi3_counts" ).prop("title", "From "+msg.from+" to "+msg.to);
                   }
                 }
               }
@@ -253,8 +253,9 @@ limitations under the License.
         }
 
         function update_server_roi_info() {
-          for (i = 1; i < 4; i++) { 
-            if (localStorage.getItem('rp_roi'+i+'_start') !== null) {
+          for (i = 1; i < 4; i++) {
+            var roi = localStorage.getItem('rp_roi'+i+'_start');
+            if (roi !== null && roi !== 'undefined') {
               ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+i+
                       ",\"from\":"+localStorage.getItem('rp_roi'+i+'_start')+
                       ",\"to\":"+localStorage.getItem('rp_roi'+i+'_end')+"}");
@@ -859,12 +860,12 @@ limitations under the License.
             } else {
               $("#spectrum-placeholder").css("cursor","crosshair", "important");
             }
-            //$("#cursor").text(item.datapoint[0].toFixed(0));
             var x = pos.x.toFixed(0);
-            var y = plot.getData()[0].data[x][1];
-            $("#cursor").text(x);
-            $("#counts").text(y);
-            //$("#counts").text(item.datapoint[1].toFixed(2));
+            if (x < plot.getData()[0].data.length) {
+              var y = plot.getData()[0].data[x][1];
+              $("#cursor").text(x);
+              $("#counts").text(y);
+            }
           } else {
             $("#spectrum-placeholder").css("cursor","pointer","important");
           }

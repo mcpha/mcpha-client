@@ -52,7 +52,10 @@ limitations under the License.
       //  <a download="My-FileName.txt" href="data:application/octet-stream,HELLO-WORLDDDDDDDD">Click here</a> 
       //
       $(function () {
-
+        
+        
+        
+        // pulse height data plot variables
         var acquiring = false;
         
         var yscale_ln_range = [100,500,2000,10000,50000,200000,1000000];
@@ -189,10 +192,11 @@ limitations under the License.
                   if (acquiring) {
                     $( "#start" ).text("Stop");
                     $( "#start" ).addClass("active");
+                    $.notify("Acquisition started", "info");                
                   } else {
                     $( "#start" ).text("Start");
                     $( "#start" ).removeClass("active");
-                    $.notify("Acquisition stopped", "success");                
+                    $.notify("Acquisition stopped", "info");                
                   }
                 }
               } else if (msg.command === "get_roi_data") {
@@ -470,6 +474,9 @@ limitations under the License.
           $(".spectrum-placeholder").height((h-240)+"px");
           // resize message-log
           $("#message-log").height((h-123)+"px");
+          // resize oscilloscope plot
+          $(".oscilloscope-container").height((h-160)+"px");
+          $(".oscilloscope-placeholder").height((h-240)+"px");
         }
         
         function logMessage(message) {
@@ -890,7 +897,31 @@ limitations under the License.
         });
         
         setAcquisitionButtonsEnabled(false);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        // SETUP OSCILLOSCOPE PLOT
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
         
+        // oscilloscope data plot variables
+        var odata0, odata1, olabel0, olabel1;
+        var oplot;
+        
+        function plot_oscilloscope(params) {
+          var data = [];
+          
+          data.push({label:olabel0, data:odata0});
+          data.push({label:olabel1, data:odata1});
+          
+          oplot = $.plot("#oscilloscope-placeholder", data, params);
+        }
+    
+        plot_oscilloscope({});
+    
+    
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        // INITIALISE TABS
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+    
         $( "#tabs" ).tabs();
         $( "#tabs ul li").css({'margin-right':'25px'});
 
@@ -988,15 +1019,17 @@ ROI #3 ......... : <span class="onscreen-message" id="roi3_counts"></span></div>
           </form>
         </div>
         <div id="fragment-oscilloscope">
-          <div id="content">
-            Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.
-            Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.
+          <div class="oscilloscope-container">
+            <div class="controls-panel-container">
+              <div class="controls-panel-content">
+                <button class="button acq_oscilloscope" id="acq_oscilloscope" title="Start oscilloscope acquisition">Start Oscilloscope Acquisition</button>
+              </div>
+            </div>
+            <div id="oscilloscope-placeholder" class="oscilloscope-placeholder"></div>
           </div>
         </div>
         <div id="fragment-log">
-          <div id="content">
-            <div id="message-log"></div>
-          </div>
+          <div id="message-log"></div>
         </div>
         <ul>
           <li><a href="#fragment-mca"><span>MCA</span></a></li>

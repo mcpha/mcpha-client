@@ -506,31 +506,42 @@ limitations under the License.
         function updateConnectionStatus(mode) {
           if (mode === "ctws") {
             // connecting to web socket
-            $("#wsconnection").css("background-image","url(css/images/spin.svg)");
+            $("#busy").show();
             $("#wsconnection").prop("title", "Connecting to web socket");
+//            $("#wsconnection").css("background-image","url(css/images/spin.svg)");
+//            $("#wsconnection").prop("title", "Connecting to web socket");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "wsce"){
             // Web socket connection established
+            $("#busy").hide();
             $("#wsconnection").css("background-image","url(css/images/connected.png)");
             $("#wsconnection").prop("title", "Web socket server connection established");
+            $.notify("Websocket connection established", "info");
+//            $("#wsconnection").css("background-image","url(css/images/connected.png)");
+//            $("#wsconnection").prop("title", "Web socket server connection established");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "wscd"){
             // Web socket connection disconnected
+            $("#busy").hide();
             $("#wsconnection").css("background-image","url(css/images/disconnected.png)");
             $("#wsconnection").prop("title", "Web socket server connection disconnected");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "ctrp") {
             // connecting to red pitaya
-            $("#rpconnection").css("background-image","url(css/images/spin.svg)");
+            $("#busy").show();
             $("#rpconnection").prop("title", "Connecting to Red Pitaya device");
+//            $("#rpconnection").css("background-image","url(css/images/spin.svg)");
+//            $("#rpconnection").prop("title", "Connecting to Red Pitaya device");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "rpce") {
             // red pitaya connection established
+            $("#busy").hide();
             $("#rpconnection").css("background-image","url(css/images/connected.png)");
             $("#rpconnection").prop("title", "Red Pitaya device connection established");
             setAcquisitionButtonsEnabled( true );
           } else if (mode === "rpcd") {
             // red pitaya connection disconnected
+            $("#busy").hide();
             $("#rpconnection").css("background-image","url(css/images/disconnected.png)");
             $("#rpconnection").prop("title", "Red Pitaya device connection disconnected");
             setAcquisitionButtonsEnabled( false );
@@ -1039,12 +1050,14 @@ limitations under the License.
         
         // resize flot div
         resize_flot_div($(window).width(), $(window).height());
+        
+        $('#busy').prop('display', 'inline');
       });
 
     </script>
   </head>
   <body>
-
+    <div class="busy" id="busy"></div>
     <div id="content">
       
       <div class="connection-panel-container">

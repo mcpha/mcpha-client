@@ -138,6 +138,16 @@ input[type=checkbox] {
   padding: 10px;
 }
 
+#busy {
+  background-image: url(images/spin-large.svg);
+  width: 200px;
+  height: 200px;
+  position: absolute;
+  top: 45%;
+  left: 45%;
+  z-index: 3000;
+}
+
 #message-log {
   background-color: #555;
   color: white;
@@ -403,7 +413,7 @@ input[type=checkbox] {
 .tabs-bar {
   position: fixed;
   bottom: 10px;
-  left: 10px;
+  left: 2px;
   margin-left: 20px;
 }
 

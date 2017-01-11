@@ -53,6 +53,10 @@ limitations under the License.
       //
       $(function () {
         
+        // oscilloscope data plot variables
+        var odata0, odata1, olabel0, olabel1;
+        var oplot;
+        
         
         
         // pulse height data plot variables
@@ -219,21 +223,27 @@ limitations under the License.
                 roi2set = "";
                 if (msg.type === "req") {
                   if (msg.roi === 1) {
-                    localStorage.setItem('rp_roi1_start', msg.from);
-                    localStorage.setItem('rp_roi1_end', msg.to);
+                    localStorage.setItem('mcpha_roi1_start', msg.from);
+                    localStorage.setItem('mcpha_roi1_end', msg.to);
                     $( "#roi1_counts" ).text("0");
                     $( "#roi1_counts" ).prop("title", "From "+msg.from+" to "+msg.to);
                   } else if (msg.roi === 2) {
-                    localStorage.setItem('rp_roi2_start', msg.from);
-                    localStorage.setItem('rp_roi2_end', msg.to);
+                    localStorage.setItem('mcpha_roi2_start', msg.from);
+                    localStorage.setItem('mcpha_roi2_end', msg.to);
                     $( "#roi2_counts" ).text("0");
                     $( "#roi2_counts" ).prop("title", "From "+msg.from+" to "+msg.to);
                   } else if (msg.roi === 3) {
-                    localStorage.setItem('rp_roi3_start', msg.from);
-                    localStorage.setItem('rp_roi3_end', msg.to);
+                    localStorage.setItem('mcpha_roi3_start', msg.from);
+                    localStorage.setItem('mcpha_roi3_end', msg.to);
                     $( "#roi3_counts" ).text("0");
                     $( "#roi3_counts" ).prop("title", "From "+msg.from+" to "+msg.to);
                   }
+                }
+              } else if (msg.command === "get_oscilloscope_data") {
+                if (msg.status === 0) {
+                  plot_oscilloscope_data(msg.label, msg.data, olabel1, odata1, {});
+                } else {
+                  $.notify(msg.message, "error");
                 }
               }
             };
@@ -258,11 +268,11 @@ limitations under the License.
 
         function update_server_roi_info() {
           for (i = 1; i < 4; i++) {
-            var roi = localStorage.getItem('rp_roi'+i+'_start');
+            var roi = localStorage.getItem('mcpha_roi'+i+'_start');
             if (roi !== null && roi !== 'undefined') {
               ws.send("{\"type\":\"req\",\"command\":\"set_roi\",\"roi\":"+i+
-                      ",\"from\":"+localStorage.getItem('rp_roi'+i+'_start')+
-                      ",\"to\":"+localStorage.getItem('rp_roi'+i+'_end')+"}");
+                      ",\"from\":"+localStorage.getItem('mcpha_roi'+i+'_start')+
+                      ",\"to\":"+localStorage.getItem('mcpha_roi'+i+'_end')+"}");
             }
           }
         }
@@ -477,8 +487,8 @@ limitations under the License.
           // resize message-log
           $("#message-log").height((h-123)+"px");
           // resize oscilloscope plot
-          $(".oscilloscope-container").height((h-150)+"px");
-          $(".oscilloscope-placeholder").height((h-230)+"px");
+          //$(".oscilloscope-container").height((h-160)+"px");
+          //$(".oscilloscope-placeholder").height((h-230)+"px");
         }
         
         function logMessage(message) {
@@ -600,9 +610,9 @@ limitations under the License.
         setupWebsocket();
 
         // set a default device ip address
-        if (localStorage.getItem('rp_ipaddr') === null) {
-          localStorage.setItem('rp_ipaddr', "0.0.0.0");
-          localStorage.setItem('rp_port', "0");
+        if (localStorage.getItem('mcpha_ipaddr') === null) {
+          localStorage.setItem('mcpha_ipaddr', "0.0.0.0");
+          localStorage.setItem('mcpha_port', "0");
         }
 
         var allFields = $( [] ).add( ipaddr );
@@ -614,8 +624,8 @@ limitations under the License.
           buttons: {
             "Connect": function() {
               // Put the object into storage
-              localStorage.setItem('rp_ipaddr', $( "#ipaddr" ).val());
-              localStorage.setItem('rp_port', $( "#port" ).val());
+              localStorage.setItem('mcpha_ipaddr', $( "#ipaddr" ).val());
+              localStorage.setItem('mcpha_port', $( "#port" ).val());
               // connect to red pitaya device
               updateConnectionStatus("ctrp");
               ws.send("{\"type\":\"req\",\"command\":\"connect\",\"deviceip\":\""+
@@ -645,7 +655,7 @@ limitations under the License.
           buttons: {
             "OK": function() {
               // Put the object into storage
-              localStorage.setItem('rp_acqtime', $( "#acqtime" ).val());
+              localStorage.setItem('mcpha_acqtime', $( "#acqtime" ).val());
               // close dialog
               dialog_acqtime.dialog( "close" );
             },
@@ -670,8 +680,8 @@ limitations under the License.
         $("button.deviceip").click(function () {
           if ($( "#deviceip" ).text().startsWith("Connect")) {
             // read the red pitaya device address from storage
-            $( "#ipaddr" ).val(localStorage.getItem('rp_ipaddr'));
-            $( "#port" ).val(localStorage.getItem('rp_port'));
+            $( "#ipaddr" ).val(localStorage.getItem('mcpha_ipaddr'));
+            $( "#port" ).val(localStorage.getItem('mcpha_port'));
             dialog_ipaddr.dialog( "open" );
           } else {
             ws.send("{\"type\":\"req\",\"command\":\"disconnect\"}");
@@ -767,17 +777,17 @@ limitations under the License.
         //
         // Set initial acquisition time
         //
-        if (localStorage.getItem("rp_acqtime") === null) {
+        if (localStorage.getItem("mcpha_acqtime") === null) {
           // use default value of 60 seconds
-          localStorage.setItem('rp_acqtime', "60");
+          localStorage.setItem('mcpha_acqtime', "60");
         }
-        $( "#acqtime_s" ).text(localStorage.getItem("rp_acqtime"));
+        $( "#acqtime_s" ).text(localStorage.getItem("mcpha_acqtime"));
         
         //
         // Set acquisition time button click handler
         //
         $("#setacqtime").click(function () {
-          $( "#acqtime" ).val(localStorage.getItem('rp_acqtime'));
+          $( "#acqtime" ).val(localStorage.getItem('mcpha_acqtime'));
           dialog_acqtime.dialog( "open" );
         });
         
@@ -790,7 +800,7 @@ limitations under the License.
         $("#start").click(function () {
           if ( $("#start" ).text() === "Start") {
             ws.send("{\"type\":\"req\",\"command\":\"set_acquisition_state\",\"state\":1,\"acqtime\":"+
-                    localStorage.getItem("rp_acqtime")+"}");
+                    localStorage.getItem("mcpha_acqtime")+"}");
           } else {
             ws.send("{\"type\":\"req\",\"command\":\"set_acquisition_state\",\"state\":0}");
           }
@@ -904,7 +914,7 @@ limitations under the License.
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         // SETUP SIDEBAR DIMENSIONS
         ///////////////////////////////////////////////////////////////////////////////////////////////////
-        $('#sidebar').toggle(function() {
+        $('#sidebar-menu').toggle(function() {
           var w = $(window).width();
           $('.fragment-side-panel').animate({width:0+"px"});
           $('.fragment-body').animate({left:10, width:(w-25)+"px"});
@@ -913,32 +923,116 @@ limitations under the License.
           $('.fragment-side-panel').animate({width:300+"px"});
           $('.fragment-body').animate({left:311+"px", width:(w-327)+"px"});
         });
+        $('#sidebar-menu').click();
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         // SETUP OSCILLOSCOPE PLOT
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         
-        // oscilloscope data plot variables
-        var odata0, odata1, olabel0, olabel1;
-        var oplot;
-        
-        function plot_oscilloscope(params) {
+        function plot_oscilloscope_data(label1, data1, label2, data2, params) {
           var data = [];
           
-          data.push({label:olabel0, data:odata0});
-          data.push({label:olabel1, data:odata1});
+          data.push({label:label1, data:data1});
+          data.push({label:label2, data:data2});
           
           oplot = $.plot("#oscilloscope-placeholder", data, params);
         }
     
-        plot_oscilloscope({});
+        plot_oscilloscope_data(olabel0, odata0, olabel1, odata1, {});
     
-    
+        // Initialise data from local storage
+        var p = localStorage.getItem('mcpha_osc_channels');
+        if (p !== null && p !== 'undefined') {
+          var ch = parseInt(p);
+          $("#osc_channel_1").prop('checked', ch & 0x1);
+          $("#osc_channel_2").prop('checked', ch & 0x2);
+        } else {
+          var channels = ($("#osc_channel_1").prop('checked') ? 1 : 0) +
+                         ($("#osc_channel_2").prop('checked') ? 2 : 0);
+          localStorage.setItem('mcpha_osc_channels', channels);
+        }
+        $('#osc_channel_1').on('click', function(e) {
+          var channels = ($("#osc_channel_1").prop('checked') ? 1 : 0) +
+                         ($("#osc_channel_2").prop('checked') ? 2 : 0);
+          localStorage.setItem('mcpha_osc_channels', channels);
+        });
+        $('#osc_channel_2').on('click', function(e) {
+          var channels = ($("#osc_channel_1").prop('checked') ? 1 : 0) +
+                         ($("#osc_channel_2").prop('checked') ? 2 : 0);
+          localStorage.setItem('mcpha_osc_channels', channels);
+        });
+
+        p = localStorage.getItem('mcpha_osc_dec_factor');
+        if (p !== null && p !== 'undefined') {
+          $("#osc_dec_factor").val(p);
+        } else {
+          // TODO: ensure number is between 4 and 8192 in increments of 4
+          localStorage.setItem('mcpha_osc_dec_factor', $("#osc_dec_factor").text());
+        }
+        $('#osc_dec_factor').on('input', function(e) {
+          // TODO: ensure number is between 4 and 8192 in increments of 4
+          localStorage.setItem('mcpha_osc_dec_factor', $("#osc_dec_factor").val());
+        });
+
+        p = localStorage.getItem('mcpha_osc_trigger_mode');
+        if (p !== null && p !== 'undefined') {
+          $("#osc_trigger_mode").val(p);
+        } else {
+          localStorage.setItem('mcpha_osc_trigger_mode', $("#osc_trigger_mode").val());
+        }
+        $('#osc_trigger_mode').on('change', function(e) {
+          localStorage.setItem('mcpha_osc_trigger_mode', $("#osc_trigger_mode").val());
+        });
+
+        p = localStorage.getItem('mcpha_osc_trigger_source');
+        if (p !== null && p !== 'undefined') {
+          $("#osc_trigger_source").val(p);
+        } else {
+          localStorage.setItem('mcpha_osc_trigger_source', $("#osc_trigger_source").val());
+        }
+        $('#osc_trigger_source').on('change', function(e) {
+          localStorage.setItem('mcpha_osc_trigger_source', $("#osc_trigger_source").val());
+        });
+
+        p = localStorage.getItem('mcpha_osc_trigger_slope');
+        if (p !== null && p !== 'undefined') {
+          $("#osc_trigger_slope").val(p);
+        } else {
+          localStorage.setItem('mcpha_osc_trigger_slope', $("#osc_trigger_slope").val());
+        }
+        $('#osc_trigger_slope').on('change', function(e) {
+          localStorage.setItem('mcpha_osc_trigger_slope', $("#osc_trigger_slope").val());
+        });
+
+        var p = localStorage.getItem('mcpha_osc_trigger_level');
+        if (p !== null && p !== 'undefined') {
+          $("#osc_trigger_level").val(p);
+        } else {
+          // TODO: ensure number is between -16380 and 16380 in increments of 5
+          localStorage.setItem('mcpha_osc_trigger_level', $("#osc_trigger_level").val());
+        }
+        $('#osc_trigger_level').on('input', function(e) {
+          // TODO: ensure number is between -16380 and 16380 in increments of 5
+          localStorage.setItem('mcpha_osc_trigger_level', $("#osc_trigger_level").val());
+        });
+        
+        //
+        // Acquire oscilloscope data click handler
+        //
+        $("#acq_oscilloscope").click(function () {
+          ws.send("{\"type\":\"req\",\"command\":\"acq_oscilloscope\""+
+                  ",\"dec_factor\":"+$("#osc_dec_factor").val()+
+                  ",\"trigger_mode\":\""+$("#osc_trigger_mode").val()+
+                  "\",\"trigger_source\":"+$("#osc_trigger_source").val()+
+                  ",\"trigger_slope\":\""+$("#osc_trigger_slope").val()+
+                  "\",\"trigger_level\":"+$("#osc_trigger_level").val()+
+                  ",\"channels\":"+localStorage.getItem('mcpha_osc_channels')+"}");
+        });
+        
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         // INITIALISE TABS
         ///////////////////////////////////////////////////////////////////////////////////////////////////
-    
-        $( "#tabs" ).tabs();
+        $( "#tabs" ).tabs({ active: 0 });
         $( "#tabs ul li").css({'margin-right':'25px','margin-left':'25px'});
 
         window.addEventListener('resize', resize_handler);
@@ -955,7 +1049,7 @@ limitations under the License.
       
       <div class="connection-panel-container">
         <div class="connection-panel-content">
-          <div class="sidebar" id="sidebar"></div>
+          <div class="sidebar-menu" id="sidebar-menu" title="Toggle sidebar"></div>
           <div class="wsconnection" id="wsconnection" title="Websocket connection status"></div>
           <div class="rpconnection" id="rpconnection" title="Red Pitaya device connection status"></div>
           <button class="deviceip" id="deviceip" title="Set Red Pitaya device IP">Connect to Device</button>
@@ -969,13 +1063,19 @@ limitations under the License.
         <div id="fragment-mca">
             <div class="fragment-side-panel">
               <div class="side-panel-contents">
-                <button>button 1</button>
-                <button>button 1</button>
-                <button>button 1</button>
-                <button>button 1</button>
-                <button>button 1</button>
-                <button>button 1</button>
-                <button>button 1</button>
+              <div class="prompt">Decimation factor</div>
+              <input type="number" step="4" id="pha_dec_factor" value="4" class="text ui-widget-content ui-corner-all">
+                <div class="prompt">Baseline substraction mode</div>
+                <select id="baseline_subtraction_mode" class="text ui-widget-content ui-corner-all">
+                  <option value="manual">Manual</option>
+                  <option value="automatic">Automatic</option>
+                </select>
+                <div class="prompt">Baseline level</div>
+                <input type="number" id="baseline_level" value="0" class="text ui-widget-content ui-corner-all">
+                <div class="prompt" title="Lower level discriminator channel">LLD channel</div>
+                <input type="text" id="lld" value="300" class="text ui-widget-content ui-corner-all">
+                <div class="prompt" title="Upper level discriminator channel">ULD channel</div>
+                <input type="text" id="uld" value="16300" class="text ui-widget-content ui-corner-all">
               </div>
             </div>
             <div class="fragment-body">
@@ -1045,19 +1145,45 @@ ROI #3 ......... : <span class="onscreen-message" id="roi3_counts"></span></div>
           </form>
         </div>
         <div id="fragment-oscilloscope">
-          <div class="oscilloscope-container">
+          <div class="fragment-side-panel">
+            <div class="side-panel-contents">
+              <div class="prompt">Channel 1
+                <input type="checkbox" id="osc_channel_1" checked class="checkbox ui-widget-content ui-corner-all">
+              </div>
+              <div class="prompt">Channel 2
+                <input type="checkbox" id="osc_channel_2" checked class="checkbox ui-widget-content ui-corner-all">
+              </div>
+              <div class="prompt">Decimation factor</div>
+              <input type="number" step="4" id="osc_dec_factor" value="4" class="text ui-widget-content ui-corner-all">
+              <div class="prompt">Trigger mode</div>
+              <select id="osc_trigger_mode" class="text ui-widget-content ui-corner-all">
+                <option selected="selected" value="n">Normal</option>
+                <option value="a">Auto</option>
+              </select>
+              <div class="prompt">Trigger source</div>
+              <select id="osc_trigger_source" class="text ui-widget-content ui-corner-all">
+                <option selected="selected" value="1">Channel 1</option>
+                <option value="2">Channel 2</option>
+              </select>
+              <div class="prompt">Trigger slope</div>
+              <select id="osc_trigger_slope" class="text ui-widget-content ui-corner-all">
+                <option selected="selected" value="r">Rising  _/¯  </option>
+                <option value="f">Falling  ¯\_  </option>
+              </select>
+              <div class="prompt">Trigger Level</div>
+              <input type="number" id="osc_trigger_level" step="5" value="200" class="text ui-widget-content ui-corner-all">
+            </div>
+          </div>
+          <div class="fragment-body">
             <div class="controls-panel-container">
               <div class="controls-panel-content">
                 <button class="button acq_oscilloscope" id="acq_oscilloscope" title="Start oscilloscope acquisition">Start Oscilloscope Acquisition</button>
               </div>
             </div>
-            <div id="oscilloscope-placeholder" class="oscilloscope-placeholder"></div>
+            <div id="oscilloscope-placeholder" class="spectrum-placeholder"></div>
           </div>
         </div>
         <div id="fragment-log">
-            <div class="fragment-side-panel">
-              <p>side panel</p>
-            </div>
           <div id="message-log"></div>
         </div>
         <div class="tabs-bar">

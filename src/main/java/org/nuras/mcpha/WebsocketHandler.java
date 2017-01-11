@@ -120,6 +120,16 @@ public class WebsocketHandler
       {
         Client.clearSpectrumData(user, 0L);
       }
+      else if (command.equals("acq_oscilloscope"))
+      {
+        long channels = (long)json.get("channels");
+        long trigger_level = (long)json.get("trigger_level");
+        String trigger_slope  = json.get("trigger_slope").toString();
+        String trigger_mode  = json.get("trigger_mode").toString();
+        long trigger_source = (long)json.get("trigger_source");
+        Client.acquireOscilloscopeData(user, (int)channels, trigger_mode,
+          (int)trigger_level, trigger_slope, (int)trigger_source);
+      }
     }
     catch (ParseException | IOException ex)
     {

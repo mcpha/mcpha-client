@@ -93,7 +93,17 @@ public class Client
   
   public static final Long MCPHA_COMMAND_READ_TIMER = 13L;
   
-  public static final Long MCPHA_COMMAND_READ_HISTOGRAM = 14L;
+  public static final Long MCPHA_COMMAND_READ_HISTOGRAM_DATA = 14L;
+  
+  public static final Long MCPHA_COMMAND_SET_NUMBER_OF_SAMPLES_BEFORE_TRIGGER = 19L;
+
+  public static final Long MCPHA_COMMAND_SET_TOTAL_NUMBER_OF_SAMPLES_TO_ACQUIRE = 20L;
+
+  public static final Long MCPHA_COMMAND_START_OSCILLOSCOPE = 21L;
+
+  public static final Long MCPHA_COMMAND_READ_OSCILLOSCOPE_STATUS = 22L;
+
+  public static final Long MCPHA_COMMAND_READ_OSCILLOSCOPE_DATA = 23L;
 
   // this map is shared between sessions and threads,
   // so it needs to be thread-safe (http://stackoverflow.com/a/2688817)
@@ -105,7 +115,7 @@ public class Client
   
   static boolean acquisition_state_active = false;
   
-  //Assign to username for next connecting user
+  // Assign to username for next connecting user
   static int nextUserNumber = 1;
   
   static ROI[] rois = new ROI[]{new ROI(), new ROI(), new ROI()};
@@ -354,6 +364,8 @@ public class Client
       mcphaSetPhaDelay(0L, 100L);
       mcphaSetPhaMinThreshold(0L, 300L);
       mcphaSetPhaMaxThreshold(0L, 16300L);
+      mcphaSetNegatorMode(0L, 0L);
+      mcphaSetNegatorMode(1L, 0L);
 //      mcphaResetHistogram(0);
       
       // get histgram data
@@ -474,7 +486,7 @@ public class Client
     double t = mcphaGetTimerValue(chan);
 
     // get histogram data
-    histogram_data = mcphaGetHistogram(chan);
+    histogram_data = mcphaGetHistogramData(chan);
 
     // push data
     JSONObject json = createJSONResponseObject();
@@ -594,6 +606,104 @@ public class Client
 //      o.put("status", 0);
 //      sendJSONObjectMessage(user.getRemote(), o);
 //    }
+  }
+
+  /**
+   * 
+   * @param user
+   * @param channels
+   * @param trigger_mode
+   * @param trigger_level
+   * @param trigger_slope
+   * @param trigger_source
+   * @throws IOException 
+   */
+  synchronized public static void acquireOscilloscopeData(Session user,
+    int channels, String trigger_mode, int trigger_level, String trigger_slope,
+    int trigger_source)
+    throws IOException
+  {
+    System.out.println("ACQUIRE OSCILLOSCOPE");
+    System.out.println("channels="+channels);
+    System.out.println("trigger_level="+trigger_level);
+    System.out.println("trigger_slope="+trigger_slope);
+    System.out.println("trigger_source="+trigger_source);
+    System.out.println("trigger_mode="+trigger_mode);
+    
+    
+//    $controller command 2 0
+//
+//    set waiting 1
+//
+//    $controller command 19 0 5000
+//    $controller command 20 0 65536
+//    $controller command 21 0
+    // Reset oscilloscope
+    mcphaResetOscilloscope();
+    
+    try
+    {
+      Thread.sleep(1000);
+    }
+    catch (InterruptedException ex)
+    {
+      Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+    }
+    
+    // Set number of samples to skip before trigger
+    mcphaSetNumberOfSamplesBeforeTrigger(5000);
+    
+    // Set total number of samples to acquire for this run
+    mcphaSetTotalNumberOfSamplesToAcquire(65536);
+    
+    // Start oscilloscope
+    mcphaStartOscilloscope();
+    
+    try
+    {
+      Thread.sleep(200);
+    }
+    catch (InterruptedException ex)
+    {
+      Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+    }
+    
+    // Read oscilloscope status
+    for (int i=0; i<5; i++)
+    {
+      try
+      {
+        Thread.sleep(100);
+      }
+      catch (InterruptedException ex)
+      {
+        Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+      }
+      System.out.println("Oscilloscope status:"+mcphaReadOscilloscopeStatus());
+    }
+    
+    // get oscillsocope data
+    IntBuffer data = mcphaGetOsilloscopeData();
+    
+    
+    // push data
+    JSONObject json = createJSONResponseObject();
+    json.put("command", "get_oscilloscope_data");
+    json.put("message", "");
+    json.put("status", 0);
+    json.put("label", "oscilloscope");
+
+    JSONArray arr = new JSONArray();
+    for (int i=0; i<data.capacity(); i+=2)
+    {
+      JSONArray xy = new JSONArray();
+      xy.put(i/2).put(data.get(i));
+      arr.put(xy);
+    }
+    json.put("data", arr);
+        
+    sendJSONObjectMessage(user.getRemote(), json);
+
   }
 
   /**
@@ -786,32 +896,116 @@ public class Client
   }
 
   /**
-   * Get histogram
+   * Set number of samples to skip before triggering.
+   * 
+   * @param samples
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetNumberOfSamplesBeforeTrigger(long samples)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_SET_NUMBER_OF_SAMPLES_BEFORE_TRIGGER, 0L, samples);
+  }
+
+  /**
+   * Set total number of samples to acquire.
+   * 
+   * @param samples
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaSetTotalNumberOfSamplesToAcquire(long samples)
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_SET_TOTAL_NUMBER_OF_SAMPLES_TO_ACQUIRE, 0L, samples);
+  }
+
+  /**
+   * Start oscilloscope.
+   * 
+   * @throws java.io.IOException 
+   */
+  synchronized public static void mcphaStartOscilloscope()
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_START_OSCILLOSCOPE, 0L, 0L);
+  }
+
+  /**
+   * Return the status of the oscilloscope.
+   * 
+   * @return the status of the oscilloscope
+   * @throws java.io.IOException 
+   */
+  synchronized public static int mcphaReadOscilloscopeStatus()
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_READ_OSCILLOSCOPE_STATUS, 0L, 4L);
+    
+    // read response
+    DataInputStream in = new DataInputStream(deviceSocket.getInputStream());
+    
+    return Integer.reverseBytes(in.readInt());
+  }
+
+  /**
+   * Get histogram data
    * 
    * @param chan
    * @return 
    * @throws java.io.IOException 
    */
-  synchronized public static IntBuffer mcphaGetHistogram(long chan)
+  synchronized public static IntBuffer mcphaGetHistogramData(long chan)
     throws IOException
   {
-    sendCommand(MCPHA_COMMAND_READ_HISTOGRAM, chan, 0);
+    sendCommand(MCPHA_COMMAND_READ_HISTOGRAM_DATA, chan, 0);
 
     DataInputStream in = new DataInputStream(deviceSocket.getInputStream());
     
     ByteBuffer data = ByteBuffer.allocate(65536);
     data.order(ByteOrder.nativeOrder());
-//    byte[] b = new byte[65536];
+    in.readFully(data.array());
+
+    return data.asIntBuffer();
+  }
+
+  /**
+   * Get oscilloscope data
+   * 
+   * @return 
+   * @throws java.io.IOException 
+   */
+  synchronized public static IntBuffer mcphaGetOsilloscopeData()
+    throws IOException
+  {
+    sendCommand(MCPHA_COMMAND_READ_OSCILLOSCOPE_DATA, 0L, 0L);
+
+    DataInputStream in = new DataInputStream(deviceSocket.getInputStream());
+    
+    ByteBuffer data = ByteBuffer.allocate(65536);
+    data.order(ByteOrder.nativeOrder());
     in.readFully(data.array());
     
-////    for (int i=1; i<b.length; i++)
-////    {
-////      System.out.format("[%d=%d]", i, (int)b[i]);
-////      if (i%10 == 0)
-////      {
-////        System.out.println();
-////      }
-////    }
+    IntBuffer od = data.asIntBuffer();
+    
+    System.out.println("oscilloscope data size "+od.capacity());
+    System.out.println("***CHANNEL 1 DATA***");
+    for (int i=0; i<od.capacity(); i+=2)
+    {
+      System.out.format("[%d=%d]", (i/2), (int)od.get(i));
+      if (i%20 == 0)
+      {
+        System.out.println();
+      }
+    }
+    System.out.println("***CHANNEL 2 DATA***");
+    for (int i=1; i<od.capacity(); i+=2)
+    {
+      System.out.format("[%d=%d]", i, (int)od.get(i));
+      if (i%21 == 0)
+      {
+        System.out.println();
+      }
+    }
     
 //    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
 //    wrapped.order(ByteOrder.nativeOrder());

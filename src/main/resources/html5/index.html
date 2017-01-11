@@ -470,13 +470,15 @@ limitations under the License.
 
         function resize_flot_div(w, h) {
           // resize spectrum plot
-          $(".spectrum-container").height((h-160)+"px");
-          $(".spectrum-placeholder").height((h-240)+"px");
+          $(".fragment-side-panel").height((h-140)+"px");
+          $(".fragment-body").height((h-140)+"px");
+          $(".spectrum-container").height((h-150)+"px");
+          $(".spectrum-placeholder").height((h-230)+"px");
           // resize message-log
           $("#message-log").height((h-123)+"px");
           // resize oscilloscope plot
-          $(".oscilloscope-container").height((h-160)+"px");
-          $(".oscilloscope-placeholder").height((h-240)+"px");
+          $(".oscilloscope-container").height((h-150)+"px");
+          $(".oscilloscope-placeholder").height((h-230)+"px");
         }
         
         function logMessage(message) {
@@ -868,7 +870,7 @@ limitations under the License.
               $("#spectrum-placeholder").css("cursor","crosshair", "important");
             }
             var x = pos.x.toFixed(0);
-            if (x < plot.getData()[0].data.length) {
+            if (x > 0 && x < plot.getData()[0].data.length) {
               var y = plot.getData()[0].data[x][1];
               $("#cursor").text(x);
               $("#counts").text(y);
@@ -898,6 +900,20 @@ limitations under the License.
         
         setAcquisitionButtonsEnabled(false);
 
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        // SETUP SIDEBAR DIMENSIONS
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        $('#sidebar').toggle(function() {
+          var w = $(window).width();
+          $('.fragment-side-panel').animate({width:0+"px"});
+          $('.fragment-body').animate({left:10, width:(w-25)+"px"});
+        }, function(){
+          var w = $(window).width();
+          $('.fragment-side-panel').animate({width:300+"px"});
+          $('.fragment-body').animate({left:311+"px", width:(w-327)+"px"});
+        });
+
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         // SETUP OSCILLOSCOPE PLOT
         ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -923,7 +939,7 @@ limitations under the License.
         ///////////////////////////////////////////////////////////////////////////////////////////////////
     
         $( "#tabs" ).tabs();
-        $( "#tabs ul li").css({'margin-right':'25px'});
+        $( "#tabs ul li").css({'margin-right':'25px','margin-left':'25px'});
 
         window.addEventListener('resize', resize_handler);
         
@@ -939,6 +955,7 @@ limitations under the License.
       
       <div class="connection-panel-container">
         <div class="connection-panel-content">
+          <div class="sidebar" id="sidebar"></div>
           <div class="wsconnection" id="wsconnection" title="Websocket connection status"></div>
           <div class="rpconnection" id="rpconnection" title="Red Pitaya device connection status"></div>
           <button class="deviceip" id="deviceip" title="Set Red Pitaya device IP">Connect to Device</button>
@@ -950,42 +967,51 @@ limitations under the License.
 
       <div id="tabs">
         <div id="fragment-mca">
-
-          <div class="cursor-panel-container">
-            <div class="cursor-panel-content">Cursor ......... : <span class="onscreen-message" id="cursor"></span>
+            <div class="fragment-side-panel">
+              <div class="side-panel-contents">
+                <button>button 1</button>
+                <button>button 1</button>
+                <button>button 1</button>
+                <button>button 1</button>
+                <button>button 1</button>
+                <button>button 1</button>
+                <button>button 1</button>
+              </div>
+            </div>
+            <div class="fragment-body">
+              <div class="cursor-panel-container">
+                <div class="cursor-panel-content">Cursor ......... : <span class="onscreen-message" id="cursor"></span>
 Counts ......... : <span class="onscreen-message" id="counts"></span>
 Acq. Time (s) .. : <span class="onscreen-message" id="acqtime_s"></span>
 Elapsed Time (s) : <span class="onscreen-message" id="elapsedtime"></span>
 ROI #1 ......... : <span class="onscreen-message" id="roi1_counts"></span>
 ROI #2 ......... : <span class="onscreen-message" id="roi2_counts"></span>
 ROI #3 ......... : <span class="onscreen-message" id="roi3_counts"></span></div>
-          </div>
-
-          <div class="spectrum-container">
-            <div id="header">
-              <button class="zoom-full-extent-button" title="Zoom channel view to full extent"></button>
-              <button class="zoom-in-button" title="Zoom channel view in"></button>
-              <button class="zoom-out-button" title="Zoom out channel view"></button>
-              <button class="pan-button" title="Pan channel view"></button>
-              <div style="width:8px;display:inline-block"></div>
-              <button class="yscale-ln-button" title="Linear vertical scale">LN</button>
-              <button class="yscale-sq-button" title="Square Root vertical scale">SQ</button>
-              <button class="yscale-lg-button" title="Log 10 vertical scale">LG</button>
-            </div>
-            <div class="controls-panel-container">
-              <div class="controls-panel-content">
-                <button class="button setacqtime" id="setacqtime" title="Set acquisition time">Acq. Time</button>
-                <button class="button start" id="start" title="Start spectrum acquisition">Start</button>
-                <button class="button clear_s_data" id="clear_s_data" title="Clear spectrum data">Clear Spc.</button>
-                <button class="button clear_time" id="clear_time" title="Clear aquisition time data">Clear Time</button>
-                <div style="width:8px;display:inline-block"></div>
-                <button class="button roi1" id="roi1" title="Set ROI #1">ROI #1</button>
-                <button class="button roi2" id="roi2" title="Set ROI #2">ROI #2</button>
-                <button class="button roi3" id="roi3" title="Set ROI #3">ROI #3</button>
               </div>
+              <div id="header">
+                <button class="zoom-full-extent-button" title="Zoom channel view to full extent"></button>
+                <button class="zoom-in-button" title="Zoom channel view in"></button>
+                <button class="zoom-out-button" title="Zoom out channel view"></button>
+                <button class="pan-button" title="Pan channel view"></button>
+                <div style="width:8px;display:inline-block"></div>
+                <button class="yscale-ln-button" title="Linear vertical scale">LN</button>
+                <button class="yscale-sq-button" title="Square Root vertical scale">SQ</button>
+                <button class="yscale-lg-button" title="Log 10 vertical scale">LG</button>
+              </div>
+              <div class="controls-panel-container">
+                <div class="controls-panel-content">
+                  <button class="button setacqtime" id="setacqtime" title="Set acquisition time">Acq. Time</button>
+                  <button class="button start" id="start" title="Start spectrum acquisition">Start</button>
+                  <button class="button clear_s_data" id="clear_s_data" title="Clear spectrum data">Clear Spc.</button>
+                  <button class="button clear_time" id="clear_time" title="Clear aquisition time data">Clear Time</button>
+                  <div style="width:8px;display:inline-block"></div>
+                  <button class="button roi1" id="roi1" title="Set ROI #1">ROI #1</button>
+                  <button class="button roi2" id="roi2" title="Set ROI #2">ROI #2</button>
+                  <button class="button roi3" id="roi3" title="Set ROI #3">ROI #3</button>
+                </div>
+              </div>
+              <div id="spectrum-placeholder" class="spectrum-placeholder"></div>
             </div>
-            <div id="spectrum-placeholder" class="spectrum-placeholder"></div>
-          </div>
         </div>
 
         <div id="dialog-ipaddr" title="Red Pitaya Device IP Address/Port">
@@ -1029,13 +1055,18 @@ ROI #3 ......... : <span class="onscreen-message" id="roi3_counts"></span></div>
           </div>
         </div>
         <div id="fragment-log">
+            <div class="fragment-side-panel">
+              <p>side panel</p>
+            </div>
           <div id="message-log"></div>
         </div>
+        <div class="tabs-bar">
         <ul>
           <li><a href="#fragment-mca"><span>MCA</span></a></li>
           <li><a href="#fragment-oscilloscope"><span>Oscilloscope</span></a></li>
           <li><a href="#fragment-log"><span>Message Log</span></a></li>
         </ul>
+        </div>
       </div>
     </div>
   

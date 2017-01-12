@@ -1,5 +1,5 @@
 ACQUIRE OSCILLOSCOPE
-channels=1
+channels=3
 trigger_level=200
 trigger_slope=r
 trigger_source=1

@@ -437,7 +437,7 @@ limitations under the License.
           }
         }
 
-        function zoom_around_cursor(xpos) {
+        function zoom_around_cursor_xpos(xpos) {
           if (plot.getData().length > 0) {
             // zoom in by a factor of 2
             var axes = plot.getAxes();
@@ -448,8 +448,8 @@ limitations under the License.
             var xrng = (xmax - xmin) / 2;
             if (xrng > 100) {
               xrng /= 2;
-              xmin = parseInt(xpos) - xrng;
-              xmax = parseInt(xpos) + xrng;
+              xmin += (parseInt(xpos) - xmin) / 2;
+              xmax -= (xmax - parseInt(xpos)) / 2;
               if (xmin < dmin) {
                 xmin = dmin;
                 xmax = xmin + (xrng * 2);
@@ -508,8 +508,6 @@ limitations under the License.
             // connecting to web socket
             $("#busy").show();
             $("#wsconnection").prop("title", "Connecting to web socket");
-//            $("#wsconnection").css("background-image","url(css/images/spin.svg)");
-//            $("#wsconnection").prop("title", "Connecting to web socket");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "wsce"){
             // Web socket connection established
@@ -517,8 +515,6 @@ limitations under the License.
             $("#wsconnection").css("background-image","url(css/images/connected.png)");
             $("#wsconnection").prop("title", "Web socket server connection established");
             $.notify("Websocket connection established", "info");
-//            $("#wsconnection").css("background-image","url(css/images/connected.png)");
-//            $("#wsconnection").prop("title", "Web socket server connection established");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "wscd"){
             // Web socket connection disconnected
@@ -530,8 +526,6 @@ limitations under the License.
             // connecting to red pitaya
             $("#busy").show();
             $("#rpconnection").prop("title", "Connecting to Red Pitaya device");
-//            $("#rpconnection").css("background-image","url(css/images/spin.svg)");
-//            $("#rpconnection").prop("title", "Connecting to Red Pitaya device");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "rpce") {
             // red pitaya connection established
@@ -878,7 +872,7 @@ limitations under the License.
         $("#spectrum-placeholder").bind("plotclick", function (event, pos, item) {
           if (plot.getData().length > 0) {
             if (zoom_mode === "zoomin") {
-              zoom_around_cursor(pos.x.toFixed(0));
+              zoom_around_cursor_xpos(pos.x.toFixed(0));
             }
           }
         });
@@ -1195,7 +1189,7 @@ ROI #3 ......... : <span class="onscreen-message" id="roi3_counts"></span></div>
           <div class="fragment-body">
             <div class="controls-panel-container">
               <div class="controls-panel-content">
-                <button class="button acq_oscilloscope" id="acq_oscilloscope" title="Start oscilloscope acquisition">Start Oscilloscope Acquisition</button>
+                <button class="button acq_oscilloscope" id="acq_oscilloscope" title="Start oscilloscope acquisition">Acquire Oscilloscope Data</button>
               </div>
             </div>
             <div id="oscilloscope-placeholder" class="spectrum-placeholder"></div>

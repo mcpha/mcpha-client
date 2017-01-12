@@ -624,32 +624,7 @@ public class Client
     int trigger_source)
     throws IOException
   {
-    System.out.println("ACQUIRE OSCILLOSCOPE");
-    System.out.println("channels="+channels);
-    System.out.println("trigger_level="+trigger_level);
-    System.out.println("trigger_slope="+trigger_slope);
-    System.out.println("trigger_source="+trigger_source);
-    System.out.println("trigger_mode="+trigger_mode);
-    
-    
-//    $controller command 2 0
-//
-//    set waiting 1
-//
-//    $controller command 19 0 5000
-//    $controller command 20 0 65536
-//    $controller command 21 0
-    // Reset oscilloscope
     mcphaResetOscilloscope();
-    
-    try
-    {
-      Thread.sleep(1000);
-    }
-    catch (InterruptedException ex)
-    {
-      Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-    }
     
     // Set number of samples to skip before trigger
     mcphaSetNumberOfSamplesBeforeTrigger(5000);

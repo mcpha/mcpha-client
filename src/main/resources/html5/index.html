@@ -25,7 +25,7 @@ limitations under the License.
     <script language="javascript" type="text/javascript" src="js/jquery-ui.js"></script>
     <script language="javascript" type="text/javascript" src="js/notify.js"></script>
     <script language="javascript" type="text/javascript" src="js/jquery.flot.js"></script>
-    <!-- <script language="javascript" type="text/javascript" src="js/jquery.flot.crosshair.js"></script> -->
+    <script language="javascript" type="text/javascript" src="js/jquery.flot.navigate.js"></script>
     <script language="javascript" type="text/javascript" src="js/jquery.flot.selection.js"></script>
     <script language="javascript" type="text/javascript" src="js/jquery.flot.resize.js"></script>
     <script type="text/javascript">
@@ -53,11 +53,12 @@ limitations under the License.
       //
       $(function () {
         
+        // notify defaults
+        $.notify.defaults({globalPosition: 'bottom right'});
+        
         // oscilloscope data plot variables
         var odata0, odata1, olabel0, olabel1;
         var oplot;
-        
-        
         
         // pulse height data plot variables
         var acquiring = false;
@@ -67,6 +68,8 @@ limitations under the License.
         var yscale_lg_range = [0.1,1,10,100,1000,10000];
         
         var zoom_mode = "";
+        
+        var pan_mode = "";
         
         var hdata, hlabel, r1data, r1label, r2data, r2label, r3data, r3label;
         
@@ -85,6 +88,7 @@ limitations under the License.
             show: false
           },
           xaxis: {
+            panRange: false,
             tickDecimals: 0,
             tickSize: 1000,
             min: 0,
@@ -94,6 +98,7 @@ limitations under the License.
             }
           },
           yaxis: {
+            panRange: false,
             labelWidth: 140,
             reserveSpace: true,
             position: "right",
@@ -121,7 +126,7 @@ limitations under the License.
             interactive: true
           },
           pan: {
-            interactive: true
+            interactive: false
           },
           selection: {
             mode: "x"
@@ -405,17 +410,53 @@ limitations under the License.
             if (roi2set !== "") {
               $("#roi"+roi2set).removeClass("current-roi");
               roi2set = "";
+              options.selection.mode = null;
+              replot(options);
             }
             // now clear any zoomin mode
             if (zoom_mode !== "") {
               $("button.zoom-in-button").removeClass("current-zoom");
               zoom_mode = "";
             }
+            // now clear pan button
+            if (pan_mode !== "") {
+              $("button.pan-button").removeClass("current-zoom");
+              pan_mode = "";
+              options.pan.interactive = false;
+              replot(options);
+            }
+          } else if (mode === "pan") {
+            // first clear any roiset modes
+            if (roi2set !== "") {
+              $("#roi"+roi2set).removeClass("current-roi");
+              roi2set = "";
+              options.selection.mode = null;
+            }
+            // now clear any zoomin mode
+            if (zoom_mode !== "") {
+              $("button.zoom-in-button").removeClass("current-zoom");
+              zoom_mode = "";
+            }
+            // now set pan mode
+            $("button.pan-button").addClass("current-zoom");
+            pan_mode = "pan";
+            options.pan.interactive = true;
+            replot(options);
+            $.notify("Pan spectrum region using mouse.", "info");
           } else if (mode === "zoomin") {
             // first clear any roiset modes
             if (roi2set !== "") {
               $("#roi"+roi2set).removeClass("current-roi");
               roi2set = "";
+              options.selection.mode = null;
+              replot(options);
+            }
+            // now clear pan button
+            if (pan_mode !== "") {
+              $("button.pan-button").removeClass("current-zoom");
+              pan_mode = "";
+              options.pan.interactive = false;
+              replot(options);
             }
             // now set zoomin mode
             if (zoom_mode === "") {
@@ -432,12 +473,20 @@ limitations under the License.
                 $("button.zoom-in-button").removeClass("current-zoom");
                 zoom_mode = "";
               }
+              // now clear pan button
+              if (pan_mode !== "") {
+                $("button.pan-button").removeClass("current-zoom");
+                pan_mode = "";
+                options.pan.interactive = false;
+              }
               // now set roiset mode
               if (roi2set !== "") {
                 $("#roi"+roi2set).removeClass("current-roi");
                 roi2set = "";
               }
               roi2set = param;
+              options.selection.mode = "x";
+              replot(options);
               $("#roi"+param).addClass("current-roi");
               $.notify("Select ROI #" + param + " region using mouse.", "info");
             }
@@ -727,14 +776,14 @@ limitations under the License.
         // zoom to full channel extent button click handler
         $("button.zoom-full-extent-button").click(function () {
           $("button.zoom-in-button").removeClass("current-zoom");
-          zoom_in = "";
+          set_selection_mode("clearall");
           var axis = plot.getAxes();
           options.xaxis.min = axis.xaxis.datamin;
           options.xaxis.max = Math.ceil(axis.xaxis.datamax);
           options.yaxis.min = 0;
           options.yaxis.max = Math.ceil(axis.yaxis.datamax);
-          options.xaxis.tickSize = get_zoom_ticks(
-                  options.xaxis.min, options.xaxis.max);
+          options.xaxis.tickSize =
+                  get_zoom_ticks(options.xaxis.min, options.xaxis.max);
           replot(options);
         });
 
@@ -742,8 +791,7 @@ limitations under the License.
           if (zoom_mode === "") {
             set_selection_mode("zoomin");
           } else {
-            zoom_mode = "";
-            $("button.zoom-in-button").removeClass("current-zoom");
+            set_selection_mode("clearall");
           }
           plot.clearSelection();
         });
@@ -780,10 +828,17 @@ limitations under the License.
         });
 
         $("button.pan-button").click(function () {
-//          plot.pan({ left: -2 });
-          options.xaxis.min = 5400;
-          options.xaxis.max = 5500;
-          replot(options);
+          if (pan_mode === "") {
+            set_selection_mode("pan");
+            var axes = plot.getAxes();
+            options.zoom.interactive = false;
+            options.pan.interactive = true;
+            options.xaxis.panRange = [0, 16384];
+            options.selection.mode = null;
+            replot(options);
+          } else {
+            set_selection_mode("clearall");
+          }
         });
 
         //
@@ -888,6 +943,8 @@ limitations under the License.
           if (plot.getData().length > 0) {
             if (zoom_mode === "zoomin") {
               $("#spectrum-placeholder").css("cursor","url(css/images/zoom-in.ico) 9 9, auto", "important");
+            } else if (pan_mode !== "") {
+              $("#spectrum-placeholder").css("cursor","move", "important");
             } else {
               $("#spectrum-placeholder").css("cursor","crosshair", "important");
             }
@@ -901,6 +958,13 @@ limitations under the License.
             $("#spectrum-placeholder").css("cursor","pointer","important");
           }
         });
+        
+        $("#spectrum-placeholder").bind("plotpan", function (event, plot) {
+          var axes = plot.getAxes();
+          options.xaxis.min = axes.xaxis.min.toFixed(0);
+          options.xaxis.max = axes.xaxis.max.toFixed(0);
+        });
+        
         
         $("#cursor").text("0");
 

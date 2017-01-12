@@ -943,8 +943,13 @@ limitations under the License.
         function plot_oscilloscope_data(label1, data1, label2, data2, params) {
           var data = [];
           
-          data.push({label:label1, data:data1});
-          data.push({label:label2, data:data2});
+          if (label1) {
+            data.push({label:label1, data:data1});
+          }
+          
+          if (label2) {
+            data.push({label:label2, data:data2});
+          }
           
           oplot = $.plot("#oscilloscope-placeholder", data, params);
         }

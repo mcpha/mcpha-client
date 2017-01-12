@@ -716,10 +716,10 @@ public class Client
       }
     }
     json.put("data1", arr1);
-    json.put("label1", "Channel 1");
+    json.put("label1", channel_1_requested ? "Channel 1" : "");
     
     json.put("data2", arr2);
-    json.put("label2", "Channel 2");
+    json.put("label2", channel_2_requested ? "Channel 2" : "");
         
     sendJSONObjectMessage(user.getRemote(), json);
 

@@ -138,6 +138,10 @@ limitations under the License.
           return;
         }
 
+        function set_busy_animation(state) {
+          $('.busy-animation').css("display", state ? "inline" : "none");
+        }
+
         function setupWebsocket() {
           if ("WebSocket" in window) {
 
@@ -147,6 +151,7 @@ limitations under the License.
 
             ws.onopen = function () {
               updateConnectionStatus("wsce");
+              logMessage("Connection established to websocket server.");
             };
 
             ws.onmessage = function (evt) {
@@ -245,6 +250,7 @@ limitations under the License.
                 } else {
                   $.notify(msg.message, "error");
                 }
+                $(".oscilloscope-status").css("background-image","url(css/images/black-dot.png)");
               }
             };
 
@@ -257,8 +263,9 @@ limitations under the License.
             };
 
             ws.onerror = function (evt) {
-              logMessage("**"+evt.data);
-              alert("->"+evt.data);
+              if (evt.data !== null && evt.data !== "defined") {
+                logMessage("ERROR: "+evt.data);
+              }
             };
           } else {
             document.write("ERROR: This browser does NOT support websockets. Please use a HTML5 compliant browser.");
@@ -506,36 +513,36 @@ limitations under the License.
         function updateConnectionStatus(mode) {
           if (mode === "ctws") {
             // connecting to web socket
-            $("#busy").show();
+            set_busy_animation(true);
             $("#wsconnection").prop("title", "Connecting to web socket");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "wsce"){
             // Web socket connection established
-            $("#busy").hide();
+            set_busy_animation(false);
             $("#wsconnection").css("background-image","url(css/images/connected.png)");
             $("#wsconnection").prop("title", "Web socket server connection established");
             $.notify("Websocket connection established", "info");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "wscd"){
             // Web socket connection disconnected
-            $("#busy").hide();
+            set_busy_animation(false);
             $("#wsconnection").css("background-image","url(css/images/disconnected.png)");
             $("#wsconnection").prop("title", "Web socket server connection disconnected");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "ctrp") {
             // connecting to red pitaya
-            $("#busy").show();
+            set_busy_animation(true);
             $("#rpconnection").prop("title", "Connecting to Red Pitaya device");
             setAcquisitionButtonsEnabled( false );
           } else if (mode === "rpce") {
             // red pitaya connection established
-            $("#busy").hide();
+            set_busy_animation(false);
             $("#rpconnection").css("background-image","url(css/images/connected.png)");
             $("#rpconnection").prop("title", "Red Pitaya device connection established");
             setAcquisitionButtonsEnabled( true );
           } else if (mode === "rpcd") {
             // red pitaya connection disconnected
-            $("#busy").hide();
+            set_busy_animation(false);
             $("#rpconnection").css("background-image","url(css/images/disconnected.png)");
             $("#rpconnection").prop("title", "Red Pitaya device connection disconnected");
             setAcquisitionButtonsEnabled( false );
@@ -1030,6 +1037,7 @@ limitations under the License.
         // Acquire oscilloscope data click handler
         //
         $("#acq_oscilloscope").click(function () {
+          $(".oscilloscope-status").css("background-image","url(css/images/green-dot.png)");
           ws.send("{\"type\":\"req\",\"command\":\"acq_oscilloscope\""+
                   ",\"dec_factor\":"+$("#osc_dec_factor").val()+
                   ",\"trigger_mode\":\""+$("#osc_trigger_mode").val()+
@@ -1049,14 +1057,12 @@ limitations under the License.
         
         // resize flot div
         resize_flot_div($(window).width(), $(window).height());
-        
-        $('#busy').prop('display', 'inline');
       });
 
     </script>
   </head>
   <body>
-    <div class="busy" id="busy"></div>
+    <div class="busy-animation"></div>
     <div id="content">
       
       <div class="connection-panel-container">
@@ -1189,6 +1195,7 @@ ROI #3 ......... : <span class="onscreen-message" id="roi3_counts"></span></div>
           <div class="fragment-body">
             <div class="controls-panel-container">
               <div class="controls-panel-content">
+                <div class="oscilloscope-status"></div>
                 <button class="button acq_oscilloscope" id="acq_oscilloscope" title="Start oscilloscope acquisition">Acquire Oscilloscope Data</button>
               </div>
             </div>

@@ -635,6 +635,7 @@ public class Client
     // Start oscilloscope
     mcphaStartOscilloscope();
     
+    // wait for 200 milliseconds
     try
     {
       Thread.sleep(200);

@@ -138,8 +138,8 @@ input[type=checkbox] {
   padding: 10px;
 }
 
-#busy {
-  background-image: url(images/spin-large.svg);
+.busy-animation {
+  background-image: url(images/spin.gif);
   width: 200px;
   height: 200px;
   position: absolute;
@@ -432,4 +432,12 @@ input[type=checkbox] {
   width: 24px;
   height: 24px;
   background-image: url(images/sidebar.png);
+}
+
+.oscilloscope-status {
+  width: 32px;
+  height: 32px;
+  background-image: url(images/black-dot.png);
+  display: inline-block;
+  margin: 8px;
 }

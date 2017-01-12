@@ -26,6 +26,7 @@ import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import java.util.Map;
 import java.util.Timer;
 import org.apache.commons.cli.CommandLine;
@@ -683,24 +684,42 @@ public class Client
     }
     
     // get oscillsocope data
-    IntBuffer data = mcphaGetOsilloscopeData();
+    ShortBuffer data = mcphaGetOsilloscopeData();
     
+    boolean channel_1_requested = (channels & 0x01) != 0;
+    boolean channel_2_requested = (channels & 0x02) != 0;
     
     // push data
     JSONObject json = createJSONResponseObject();
     json.put("command", "get_oscilloscope_data");
     json.put("message", "");
     json.put("status", 0);
-    json.put("label", "oscilloscope");
 
-    JSONArray arr = new JSONArray();
-    for (int i=0; i<data.capacity(); i+=2)
+    JSONArray arr1 = new JSONArray();
+    JSONArray arr2 = new JSONArray();
+    data.rewind();
+    for (int i=0,n1=0,n2=0; i<data.capacity(); i+=2)
     {
+      // channel 1 data
       JSONArray xy = new JSONArray();
-      xy.put(i/2).put(data.get(i));
-      arr.put(xy);
+      short d = data.get();
+      if (channel_1_requested)
+      {
+        arr1.put(xy.put(n1++).put(d));
+      }
+      // channel 2 data
+      xy = new JSONArray();
+      d = data.get();
+      if (channel_2_requested)
+      {
+        arr2.put(xy.put(n2++).put(d));
+      }
     }
-    json.put("data", arr);
+    json.put("data1", arr1);
+    json.put("label1", "Channel 1");
+    
+    json.put("data2", arr2);
+    json.put("label2", "Channel 2");
         
     sendJSONObjectMessage(user.getRemote(), json);
 
@@ -969,12 +988,13 @@ public class Client
   }
 
   /**
-   * Get oscilloscope data
+   * Get oscilloscope data which are 16-bit signed integer values.
+   * The channels are interleaved sample-by-sample (ch1, ch2, ch1, ch2, etc).
    * 
-   * @return 
+   * @return a ShortBuffer of channel data values.
    * @throws java.io.IOException 
    */
-  synchronized public static IntBuffer mcphaGetOsilloscopeData()
+  synchronized public static ShortBuffer mcphaGetOsilloscopeData()
     throws IOException
   {
     sendCommand(MCPHA_COMMAND_READ_OSCILLOSCOPE_DATA, 0L, 0L);
@@ -985,41 +1005,7 @@ public class Client
     data.order(ByteOrder.nativeOrder());
     in.readFully(data.array());
     
-    IntBuffer od = data.asIntBuffer();
-    
-    System.out.println("oscilloscope data size "+od.capacity());
-    System.out.println("***CHANNEL 1 DATA***");
-    for (int i=0; i<od.capacity(); i+=2)
-    {
-      System.out.format("[%d=%d]", (i/2), (int)od.get(i));
-      if (i%20 == 0)
-      {
-        System.out.println();
-      }
-    }
-    System.out.println("***CHANNEL 2 DATA***");
-    for (int i=1; i<od.capacity(); i+=2)
-    {
-      System.out.format("[%d=%d]", i, (int)od.get(i));
-      if (i%21 == 0)
-      {
-        System.out.println();
-      }
-    }
-    
-//    ByteBuffer wrapped = ByteBuffer.wrap(b); // big-endian by default
-//    wrapped.order(ByteOrder.nativeOrder());
-    
-//    IntBuffer ib = wrapped.asIntBuffer();
-//    int[] data = new int[16301];
-    
-//    for (int i=0; i<data.length; i++)
-//    {
-//      data[i+1] = ib.get();
-//    }
-    
-//    return data;
-    return data.asIntBuffer();
+    return data.asShortBuffer();
   }
 
   /**

@@ -241,7 +241,7 @@ limitations under the License.
                 }
               } else if (msg.command === "get_oscilloscope_data") {
                 if (msg.status === 0) {
-                  plot_oscilloscope_data(msg.label, msg.data, olabel1, odata1, {});
+                  plot_oscilloscope_data(msg.label1, msg.data1, msg.label2, msg.data2, {});
                 } else {
                   $.notify(msg.message, "error");
                 }
